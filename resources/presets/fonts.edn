@@ -1,0 +1,9 @@
+{:fonts
+ {:default {:title "微软雅黑" :body "微软雅黑" :size 12.0}
+  :professional {:title "微软雅黑" :body "微软雅黑" :size 12.0}
+  :creative {:title "Poppins" :body "Georgia" :size 13.0}
+  :compact {:title "Verdana" :body "Tahoma" :size 10.0}
+  :classic {:title "微软雅黑" :body "微软雅黑" :size 12.0}
+  :en {:title "Carlito" :body "Carlito" :size 12.0}
+  :cn {:title "微软雅黑" :body "微软雅黑" :size 12.0}
+  }}

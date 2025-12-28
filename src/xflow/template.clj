@@ -1,0 +1,21 @@
+(ns xflow.template
+  (:require [xcommon.io :as xio]
+            [xflow.text2flow :as text2flow]))
+
+(defn load-template
+  "Load a workflow template EDN from resources/templates."
+  [template-name]
+  (let [resource-path (str "templates/" (name template-name) ".edn")]
+    (xio/load-edn-from-resource resource-path)))
+
+(defn render-template
+  "Render a workflow diagram from a template EDN.
+
+  template-name: keyword or string identifying the template file (without extension)
+  output-file: output path, e.g. \"output/template_workflow_demo.svg\""
+  [template-name output-file]
+  (let [template (load-template template-name)
+        data (:data template)
+        dsl (:pool-dsl data)
+        cleaned-output-file (clojure.string/replace output-file #"\+" "/")]
+    (text2flow/render dsl cleaned-output-file)))

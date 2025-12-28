@@ -1,0 +1,524 @@
+{:colors
+ {:color-pool
+  {;; 原始设计配色（来自旧预设）
+   :original-orange "#f29e4c"
+   :original-green "#a4d665"
+   :original-blue "#94c7f4"
+   :original-purple "#a4036f"
+
+   ;; 原始设计淡色版本（用于泳道背景）
+   :original-orange-light "#f6e1cd"
+   :original-green-light "#e1f9c3"
+   :original-blue-light "#e1f1ff"
+   :original-purple-light "#f4e1f0"
+
+   ;; 商业美化最佳主题专用颜色
+   :best-blue "#589AD7"
+   :best-orange "#ED7D31"
+   :best-purple "#7030A0"
+   :best-green "#A9D08D"
+   :best-yellow "#FFD964"
+   :best-bluegray "#44546A"
+   :best-gray-light "#F2F2F2"
+   :best-gray-body "#A5A5A5"
+   :best-separator "#FFFFFF"
+
+   ;; 基础颜色（Java Color 常量）
+   :slate [100 116 139]
+   :gray [107 114 128]
+   :zinc [113 113 122]
+   :neutral [115 115 115]
+   :stone [120 113 108]
+   :red [239 68 68]
+   :orange [249 115 22]
+   :amber [245 158 11]
+   :yellow [234 179 8]
+   :lime [132 204 22]
+   :green [34 197 94]
+   :emerald [16 185 129]
+   :teal [20 184 166]
+   :cyan [6 182 212]
+   :sky [14 165 233]
+   :blue [59 130 246]
+   :indigo [99 102 241]
+   :violet [139 92 246]
+   :purple [168 85 247]
+   :fuchsia [217 70 239]
+   :pink [236 72 153]
+   :rose [244 63 94]
+   :black [0 0 0]
+   :white [255 255 255]
+
+;; Rainbow 颜色系列（来自 mindmaster）
+   :rainbow1 [248 61 46]
+   :rainbow2 [247 180 38]
+   :rainbow3 [38 177 76]
+   :rainbow4 [30 97 255]
+   :rainbow5 [187 67 254]
+   :rainbow6 [255 110 38]
+   :rainbow7 [124 179 66]
+   :rainbow8 [0 187 255]
+   :rainbow9 [117 22 232]
+   :rainbow10 [255 69 162]
+
+   ;; Slate 系列（Tailwind）
+   :slate50 [248 250 252]
+   :slate100 [241 245 249]
+   :slate200 [226 232 240]
+   :slate300 [203 213 225]
+   :slate400 [148 163 184]
+   :slate500 [100 116 139]
+   :slate600 [71 85 105]
+   :slate700 [51 65 85]
+   :slate800 [30 41 59]
+   :slate900 [15 23 42]
+   :slate950 [2 6 23];; Gray 系列（Tailwind）
+   :gray50 [249 250 251]
+   :gray100 [243 244 246]
+   :gray200 [229 231 235]
+   :gray300 [209 213 219]
+   :gray400 [156 163 175]
+   :gray500 [107 114 128]
+   :gray600 [75 85 99]
+   :gray700 [55 65 81]
+   :gray800 [31 41 55]
+   :gray900 [17 24 39]
+   :gray950 [3 7 18];; Zinc 系列（Tailwind）
+   :zinc50 [250 250 250]
+   :zinc100 [244 244 245]
+   :zinc200 [228 228 231]
+   :zinc300 [212 212 216]
+   :zinc400 [161 161 170]
+   :zinc500 [113 113 122]
+   :zinc600 [82 82 91]
+   :zinc700 [63 63 70]
+   :zinc800 [39 39 42]
+   :zinc900 [24 24 27]
+   :zinc950 [9 9 11];; Neutral 系列（Tailwind）
+   :neutral50 [250 250 250]
+   :neutral100 [245 245 245]
+   :neutral200 [229 229 229]
+   :neutral300 [212 212 212]
+   :neutral400 [163 163 163]
+   :neutral500 [115 115 115]
+   :neutral600 [82 82 82]
+   :neutral700 [64 64 64]
+   :neutral800 [38 38 38]
+   :neutral900 [23 23 23]
+   :neutral950 [10 10 10];; Stone 系列（Tailwind）
+   :stone50 [250 250 249]
+   :stone100 [245 245 244]
+   :stone200 [231 229 228]
+   :stone300 [214 211 209]
+   :stone400 [168 162 158]
+   :stone500 [120 113 108]
+   :stone600 [87 83 78]
+   :stone700 [68 64 60]
+   :stone800 [41 37 36]
+   :stone900 [28 25 23]
+   :stone950 [12 10 9];; Red 系列（Tailwind）
+   :red50 [254 242 242]
+   :red100 [254 226 226]
+   :red200 [254 202 202]
+   :red300 [252 165 165]
+   :red400 [248 113 113]
+   :red500 [239 68 68]
+   :red600 [220 38 38]
+   :red700 [185 28 28]
+   :red800 [153 27 27]
+   :red900 [127 29 29]
+   :red950 [69 10 10];; Orange 系列（Tailwind）
+   :orange50 [255 247 237]
+   :orange100 [255 237 213]
+   :orange200 [254 215 170]
+   :orange300 [253 186 116]
+   :orange400 [251 146 60]
+   :orange500 [249 115 22]
+   :orange600 [234 88 12]
+   :orange700 [194 65 12]
+   :orange800 [154 52 18]
+   :orange900 [124 45 18]
+   :orange950 [67 20 7];; Amber 系列（Tailwind）
+   :amber50 [255 251 235]
+   :amber100 [254 243 199]
+   :amber200 [253 230 138]
+   :amber300 [252 211 77]
+   :amber400 [251 191 36]
+   :amber500 [245 158 11]
+   :amber600 [217 119 6]
+   :amber700 [180 83 9]
+   :amber800 [146 64 14]
+   :amber900 [120 53 15]
+   :amber950 [69 26 3];; Yellow 系列（Tailwind）
+   :yellow50 [254 252 232]
+   :yellow100 [254 249 195]
+   :yellow200 [254 240 138]
+   :yellow300 [253 224 71]
+   :yellow400 [250 204 21]
+   :yellow500 [234 179 8]
+   :yellow600 [202 138 4]
+   :yellow700 [161 98 7]
+   :yellow800 [133 77 14]
+   :yellow900 [113 63 18]
+   :yellow950 [66 32 6];; Lime 系列（Tailwind）
+   :lime50 [247 254 231]
+   :lime100 [236 252 203]
+   :lime200 [217 249 157]
+   :lime300 [190 242 100]
+   :lime400 [163 230 53]
+   :lime500 [132 204 22]
+   :lime600 [101 163 13]
+   :lime700 [77 124 15]
+   :lime800 [63 98 18]
+   :lime900 [54 83 20]
+   :lime950 [26 46 5];; Green 系列（Tailwind）
+   :green50 [240 253 244]
+   :green100 [220 252 231]
+   :green200 [187 247 208]
+   :green300 [134 239 172]
+   :green400 [74 222 128]
+   :green500 [34 197 94]
+   :green600 [22 163 74]
+   :green700 [21 128 61]
+   :green800 [22 101 52]
+   :green900 [20 83 45]
+   :green950 [5 46 22];; Emerald 系列（Tailwind）
+   :emerald50 [236 253 245]
+   :emerald100 [209 250 229]
+   :emerald200 [167 243 208]
+   :emerald300 [110 231 183]
+   :emerald400 [52 211 153]
+   :emerald500 [16 185 129]
+   :emerald600 [5 150 105]
+   :emerald700 [4 120 87]
+   :emerald800 [6 95 70]
+   :emerald900 [6 78 59]
+   :emerald950 [2 44 34];; Teal 系列（Tailwind）
+   :teal50 [240 253 250]
+   :teal100 [204 251 241]
+   :teal200 [153 246 228]
+   :teal300 [94 234 212]
+   :teal400 [45 212 191]
+   :teal500 [20 184 166]
+   :teal600 [13 148 136]
+   :teal700 [15 118 110]
+   :teal800 [17 94 89]
+   :teal900 [19 78 74]
+   :teal950 [4 47 46];; Cyan 系列（Tailwind）
+   :cyan50 [236 254 255]
+   :cyan100 [207 250 254]
+   :cyan200 [165 243 252]
+   :cyan300 [103 232 249]
+   :cyan400 [34 211 238]
+   :cyan500 [6 182 212]
+   :cyan600 [8 145 178]
+   :cyan700 [14 116 144]
+   :cyan800 [21 94 117]
+   :cyan900 [22 78 99]
+   :cyan950 [8 51 68];; Sky 系列（Tailwind）
+   :sky50 [240 249 255]
+   :sky100 [224 242 254]
+   :sky200 [186 230 253]
+   :sky300 [125 211 252]
+   :sky400 [56 189 248]
+   :sky500 [14 165 233]
+   :sky600 [2 132 199]
+   :sky700 [3 105 161]
+   :sky800 [7 89 133]
+   :sky900 [12 74 110]
+   :sky950 [8 47 73];; Blue 系列（Tailwind）
+   :blue50 [239 246 255]
+   :blue100 [219 234 254]
+   :blue200 [191 219 254]
+   :blue300 [147 197 253]
+   :blue400 [96 165 250]
+   :blue500 [59 130 246]
+   :blue600 [37 99 235]
+   :blue700 [29 78 216]
+   :blue800 [30 64 175]
+   :blue900 [30 58 138]
+   :blue950 [23 37 84];; Indigo 系列（Tailwind）
+   :indigo50 [238 242 255]
+   :indigo100 [224 231 255]
+   :indigo200 [199 210 254]
+   :indigo300 [165 180 252]
+   :indigo400 [129 140 248]
+   :indigo500 [99 102 241]
+   :indigo600 [79 70 229]
+   :indigo700 [67 56 202]
+   :indigo800 [55 48 163]
+   :indigo900 [49 46 129]
+   :indigo950 [30 27 75];; Violet 系列（Tailwind）
+   :violet50 [245 243 255]
+   :violet100 [237 233 254]
+   :violet200 [221 214 254]
+   :violet300 [196 181 253]
+   :violet400 [167 139 250]
+   :violet500 [139 92 246]
+   :violet600 [124 58 237]
+   :violet700 [109 40 217]
+   :violet800 [91 33 182]
+   :violet900 [76 29 149]
+   :violet950 [46 16 101];; Purple 系列（Tailwind）
+   :purple50 [250 245 255]
+   :purple100 [243 232 255]
+   :purple200 [233 213 255]
+   :purple300 [216 180 254]
+   :purple400 [192 132 252]
+   :purple500 [168 85 247]
+   :purple600 [147 51 234]
+   :purple700 [126 34 206]
+   :purple800 [107 33 168]
+   :purple900 [88 28 135]
+   :purple950 [59 7 100];; Fuchsia 系列（Tailwind）
+   :fuchsia50 [253 244 255]
+   :fuchsia100 [250 232 255]
+   :fuchsia200 [245 208 254]
+   :fuchsia300 [240 171 252]
+   :fuchsia400 [232 121 249]
+   :fuchsia500 [217 70 239]
+   :fuchsia600 [192 38 211]
+   :fuchsia700 [162 28 175]
+   :fuchsia800 [134 25 143]
+   :fuchsia900 [112 26 117]
+   :fuchsia950 [74 4 78];; Pink 系列（Tailwind）
+   :pink50 [253 242 248]
+   :pink100 [252 231 243]
+   :pink200 [251 207 232]
+   :pink300 [249 168 212]
+   :pink400 [244 114 182]
+   :pink500 [236 72 153]
+   :pink600 [219 39 119]
+   :pink700 [190 24 93]
+   :pink800 [157 23 77]
+   :pink900 [131 24 67]
+   :pink950 [80 7 36];; Rose 系列（Tailwind）
+   :rose50 [255 241 242]
+   :rose100 [255 228 230]
+   :rose200 [254 205 211]
+   :rose300 [253 164 175]
+   :rose400 [251 113 133]
+   :rose500 [244 63 94]
+   :rose600 [225 29 72]
+   :rose700 [190 18 60]
+   :rose800 [159 18 57]
+   :rose900 [136 19 55]
+   :rose950 [76 5 25]}
+
+;; 可复用的调色盘预设（供主题引用）
+  :palette-presets
+  {;; === 商务专业系列 ===
+
+   ;; 1) 经典商务蓝（专业、可信赖）
+   :business-classic
+   {:desc "经典商务蓝调 - 优化层次感的专业配色"
+    :pool-lanes
+    {:blue700 [:blue500 :blue400 :blue300]
+     :slate700 [:slate500 :slate400 :slate300]
+     :gray700 [:gray500 :gray400 :gray300]
+     :indigo700 [:indigo500 :indigo400 :indigo300]
+     :fallback [:blue700 :slate700 :gray700]}}
+
+   ;; 商业美化最佳主题 - 提取自 best 目录 SVG
+   :best-aesthetic
+   {:desc "商业美化最佳主题配色"
+    :pool-lanes
+    {:best-green [:best-green :best-gray-light :best-green]
+     :best-yellow [:best-yellow :best-gray-light :best-yellow]
+     :best-blue [:best-blue :best-gray-light :best-blue]
+     :fallback [:best-green :best-yellow :best-blue]}}
+
+;; 2) 现代科技风（蓝+青+灰）
+   :tech-modern
+   {:desc "现代科技风格 - 优化对比度的蓝青配色"
+    :pool-lanes
+    {:blue700 [:cyan500 :sky400 :blue400] ; 深蓝pool -> 浅青天蓝lanes
+     :cyan700 [:blue500 :sky400 :cyan400] ; 深青pool -> 浅蓝天青lanes
+     :slate700 [:slate500 :slate400 :gray400] ; 深灰pool -> 浅灰lanes
+     :indigo700 [:blue500 :cyan400 :indigo400] ; 深靛pool -> 浅蓝青lanes
+     :fallback [:blue700 :cyan700 :slate700]}}
+
+   ;; 3) 深色专业版（适合深色主题）
+   :dark-professional
+   {:desc "深色专业版 - 修正层次感的深色主题"
+    :pool-lanes
+    {:slate800 [:slate600 :slate500 :slate400] ; 最深slate -> 中浅slate
+     :blue800 [:blue600 :blue500 :blue400] ; 最深蓝 -> 中浅蓝
+     :gray800 [:gray600 :gray500 :gray400] ; 最深灰 -> 中浅灰
+     :indigo800 [:indigo600 :indigo500 :indigo400] ; 最深靛 -> 中浅靛
+     :fallback [:slate800 :blue800 :gray800]}}
+
+   ;; === 创意活力系列 ===
+
+   ;; 4) 活力橙绿（创意、活跃）
+   :creative-vibrant
+   {:desc "活力橙绿配色 - 创意活跃的视觉效果"
+    :pool-lanes
+    {:orange500 [:green500 :emerald500 :orange400]
+     :green500 [:orange500 :emerald500 :green400]
+     :emerald500 [:orange500 :green500 :emerald400]
+     :orange400 [:green400 :emerald400 :orange300]
+     :green400 [:orange400 :emerald400 :green300]
+     :fallback [:orange500 :green500 :emerald500]}}
+
+   ;; 5) 彩虹创意（多彩、创新）
+   :rainbow-creative
+   {:desc "彩虹创意配色 - 多彩创新风格"
+    :pool-lanes
+    {:rainbow1 [:rainbow3 :rainbow4 :rainbow2]
+     :rainbow2 [:rainbow5 :rainbow6 :rainbow1]
+     :rainbow3 [:rainbow1 :rainbow4 :rainbow7]
+     :rainbow4 [:rainbow1 :rainbow3 :rainbow8]
+     :rainbow5 [:rainbow2 :rainbow6 :rainbow9]
+     :fallback [:rainbow1 :rainbow3 :rainbow4]}}
+
+   ;; 6) 暖色调和（橙红黄）
+   :warm-harmony
+   {:desc "暖色调和配色 - 温暖友好的视觉感受"
+    :pool-lanes
+    {:orange500 [:red500 :amber500 :orange400]
+     :red500 [:orange500 :amber500 :red400]
+     :amber500 [:orange500 :red500 :amber400]
+     :orange400 [:red400 :amber400 :orange300]
+     :red400 [:orange400 :amber400 :red300]
+     :fallback [:orange500 :red500 :amber500]}}
+
+   ;; === 自然清新系列 ===
+
+   ;; 7) 自然绿意（绿色系为主）
+   :nature-green
+   {:desc "自然绿意配色 - 优化层次的绿色主题"
+    :pool-lanes
+    {:green700 [:green500 :green400 :green300] ; 深绿pool -> 浅绿lanes
+     :emerald700 [:emerald500 :emerald400 :emerald300] ; 深翠绿pool -> 浅翠绿lanes
+     :teal700 [:teal500 :teal400 :teal300] ; 深青绿pool -> 浅青绿lanes
+     :lime700 [:lime500 :lime400 :lime300] ; 深青柠pool -> 浅青柠lanes
+     :fallback [:green700 :emerald700 :teal700]}}
+
+   ;; 8) 海洋蓝调（蓝青色系）
+   :ocean-blue
+   {:desc "海洋蓝调配色 - 宁静深邃的蓝色主题"
+    :pool-lanes
+    {:blue500 [:cyan500 :teal500 :blue400]
+     :cyan500 [:blue500 :teal500 :cyan400]
+     :teal500 [:blue500 :cyan500 :teal400]
+     :blue400 [:cyan400 :teal400 :blue300]
+     :slate500 [:slate400 :slate600 :slate300]
+     :fallback [:blue500 :cyan500 :teal500]}}
+
+   ;; === 优雅精致系列 ===
+
+   ;; 9) 紫色优雅（紫色系为主）
+   :purple-elegant
+   {:desc "紫色优雅配色 - 优化层次的高贵主题"
+    :pool-lanes
+    {:purple700 [:purple500 :purple400 :purple300] ; 深紫pool -> 浅紫lanes
+     :indigo700 [:indigo500 :indigo400 :indigo300] ; 深靛pool -> 浅靛lanes
+     :violet700 [:violet500 :violet400 :violet300] ; 深紫罗兰pool -> 浅紫罗兰lanes
+     :fuchsia700 [:fuchsia500 :fuchsia400 :fuchsia300] ; 深品红pool -> 浅品红lanes
+     :fallback [:purple700 :indigo700 :violet700]}}
+
+   ;; 10) 粉色柔和（粉色系）
+   :pink-soft
+   {:desc "粉色柔和配色 - 温柔浪漫的粉色主题"
+    :pool-lanes
+    {:pink500 [:rose500 :fuchsia500 :pink400]
+     :rose500 [:pink500 :fuchsia500 :rose400]
+     :fuchsia500 [:pink500 :rose500 :fuchsia400]
+     :pink400 [:rose400 :fuchsia400 :pink300]
+     :rose400 [:pink400 :fuchsia400 :rose300]
+     :fallback [:pink500 :rose500 :fuchsia500]}}
+
+   ;; === 经典传统系列 ===
+
+   ;; 11) 经典灰度（灰色系为主）
+   :classic-grayscale
+   {:desc "经典灰度配色 - 简洁专业的灰色主题"
+    :pool-lanes
+    {:gray600 [:gray700 :gray500 :gray400]
+     :gray700 [:gray600 :gray800 :gray500]
+     :slate600 [:slate700 :slate500 :slate400]
+     :slate700 [:slate600 :slate800 :slate500]
+     :gray500 [:gray400 :gray600 :gray300]
+     :fallback [:gray600 :slate600 :gray500]}}
+
+   ;; 12) 原始设计（保持兼容性）
+   :original-design
+   {:desc "原始设计配色 - 保持与旧版本的兼容性"
+    :pool-lanes
+    {:original-orange [:original-orange-light :original-orange-light :original-orange-light]
+     :original-green [:original-green-light :original-green-light :original-green-light]
+     :original-blue [:original-blue-light :original-blue-light :original-blue-light]
+     :original-purple [:original-purple-light :original-blue-light :original-green-light]
+     :fallback [:original-orange-light :original-green-light :original-blue-light]}}
+
+   ;; === 高对比度系列 ===
+
+   ;; 13) 高对比商务（强对比度）
+   :high-contrast-business
+   {:desc "高对比商务配色 - 强化层次的对比主题"
+    :pool-lanes
+    {:blue800 [:blue500 :blue400 :blue300] ; 深蓝pool -> 浅蓝lanes
+     :red800 [:red500 :red400 :red300] ; 深红pool -> 浅红lanes  
+     :green800 [:green500 :green400 :green300] ; 深绿pool -> 浅绿lanes
+     :orange800 [:orange500 :orange400 :orange300] ; 深橙pool -> 浅橙lanes
+     :fallback [:blue800 :red800 :green800]}}
+
+   ;; 14) 明暗对比（深浅搭配）
+   :light-dark-contrast
+   {:desc "明暗对比配色 - 深浅色调的强烈对比"
+    :pool-lanes
+    {:slate800 [:blue200 :green200 :slate700]
+     :blue200 [:slate800 :green200 :blue300]
+     :green200 [:slate800 :blue200 :green300]
+     :slate700 [:blue300 :green300 :slate600]
+     :gray600 [:gray400 :gray200 :gray500]
+     :fallback [:slate800 :blue200 :green200]}}
+
+   ;; === 季节主题系列 ===
+
+   ;; 15) 春季清新（绿+粉+黄）
+   :spring-fresh
+   {:desc "春季清新配色 - 生机勃勃的春天色彩"
+    :pool-lanes
+    {:green400 [:pink400 :yellow400 :green300]
+     :pink400 [:green400 :yellow400 :pink300]
+     :yellow400 [:green400 :pink400 :yellow300]
+     :green300 [:pink300 :yellow300 :green200]
+     :pink300 [:green300 :yellow300 :pink200]
+     :fallback [:green400 :pink400 :yellow400]}}
+
+   ;; 16) 秋季温暖（橙+红+黄）
+   :autumn-warm
+   {:desc "秋季温暖配色 - 温暖舒适的秋天色彩"
+    :pool-lanes
+    {:orange600 [:red600 :amber600 :orange500]
+     :red600 [:orange600 :amber600 :red500]
+     :amber600 [:orange600 :red600 :amber500]
+     :orange500 [:red500 :amber500 :orange400]
+     :red500 [:orange500 :amber500 :red400]
+     :fallback [:orange600 :red600 :amber600]}}
+
+   ;; === 特殊用途系列 ===
+
+   ;; 17) 数据可视化（区分度高）
+   :data-visualization
+   {:desc "数据可视化配色 - 高区分度适合图表"
+    :pool-lanes
+    {:blue600 [:red600 :green600 :blue500]
+     :red600 [:blue600 :green600 :red500]
+     :green600 [:blue600 :red600 :green500]
+     :orange600 [:purple600 :cyan600 :orange500]
+     :purple600 [:orange600 :cyan600 :purple500]
+     :fallback [:blue600 :red600 :green600]}}
+
+   ;; 18) 无障碍友好（色盲友好）
+   :accessibility-friendly
+   {:desc "无障碍友好配色 - 色盲用户友好的配色方案"
+    :pool-lanes
+    {:blue600 [:orange600 :gray600 :blue500]
+     :orange600 [:blue600 :gray600 :orange500]
+     :gray600 [:blue600 :orange600 :gray500]
+     :blue500 [:orange500 :gray500 :blue400]
+     :slate600 [:slate500 :slate400 :slate700]
+     :fallback [:blue600 :orange600 :gray600]}}}}}

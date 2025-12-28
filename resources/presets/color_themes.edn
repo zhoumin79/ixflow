@@ -1,0 +1,256 @@
+{:color-themes
+ {;; best 主题：商业美化配色提取
+  :best {:pool-lane-fill-colors {:preset :best-aesthetic}
+         :font-color :black
+         :pool-title-font-color :white
+         :lane-title-font-color :black
+         :background-fill :white
+         :task-fill [:colors :color-pool :best-blue]
+         :task-stroke :gray600
+         :lane-body-font-color :black
+         :lane-body-fill-color [:colors :color-pool :best-gray-light]
+         :connector-stroke :gray400
+         :connector-width 1
+         :connector-opacity 0.25}
+
+  ;; default 主题：作为"最全"兜底主题，使用现代科技风配色
+  :default
+  {:pool-lane-fill-colors {:preset :tech-modern}
+   ;; 基础与背景
+   :background-fill :white
+   ;; 文本颜色（按组件语义区分）
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   ;; 组件填充/描边
+   :task-fill :blue500
+   :task-stroke :gray600
+   ;; 连接线样式
+   :connector-stroke :gray400
+   :connector-width 1
+   :connector-opacity 0.25
+   :lane-body-fill-color :gray50}
+
+  ;; original-design 主题：使用原始设计的四色系统（橙、绿、蓝、紫）
+  :original-design
+  {:pool-lane-fill-colors
+   {:preset :original-design}
+   ;; 基础与背景
+   :background-fill :white
+   ;; 文本颜色
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   ;; 组件填充/描边 - 使用原始设计颜色
+   :task-fill :original-blue
+   :task-stroke :gray600
+   :lane-body-fill-color :gray50}
+
+  ;; === 新增专业主题 ===
+
+  ;; 创意活力主题
+  :creative
+  {:pool-lane-fill-colors {:preset :creative-vibrant}
+   :background-fill :white
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   :task-fill :orange500
+   :task-stroke :gray600
+   :lane-body-fill-color :gray50}
+
+  ;; 自然清新主题
+  :nature
+  {:pool-lane-fill-colors {:preset :nature-green}
+   :background-fill :white
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   :task-fill :green500
+   :task-stroke :gray600
+   :lane-body-fill-color :gray50}
+
+  ;; 优雅紫色主题
+  :elegant
+  {:pool-lane-fill-colors {:preset :purple-elegant}
+   :background-fill :white
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   :task-fill :purple500
+   :task-stroke :gray600
+   :lane-body-fill-color :gray50}
+
+  ;; 高对比度主题（无障碍友好）
+  :high-contrast
+  {:pool-lane-fill-colors {:preset :accessibility-friendly}
+   :background-fill :white
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   :task-fill :blue600
+   :task-stroke :gray700
+   :lane-body-fill-color :gray50}
+
+  ;; 无边框主题：适合极简风流程图
+  :borderless
+  {:pool-lane-fill-colors {:preset :tech-modern}
+   :background-fill :white
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   ;; 节点使用浅灰卡片式填充，保持无边框但有视觉块感
+   :task-fill :gray100
+   :task-stroke :gray300
+   :element-outline-colour :gray300
+   :element-outline-width 0
+   :lane-body-fill-color :white}
+
+  ;; 深色主题
+  :dark
+  {:pool-lane-fill-colors {:preset :dark-professional}
+   :background-fill :slate900
+   :font-color :white
+   :pool-title-font-color :black
+   :lane-title-font-color :white
+   :lane-body-font-color :white
+   :task-fill :slate700
+   :task-stroke :slate500
+   :lane-body-fill-color :slate800}
+
+  ;; business-classic 主题：经典商务蓝调，专业配色
+  :business-classic
+  {:pool-fill-color :blue700
+   :lane-fill-color :slate700
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill :blue600
+   :task-stroke :gray600
+   :lane-body-font-color :black
+   :lane-body-fill-color :gray50}
+
+  ;; Greywoof
+  :greywoof
+  {:pool-fill-color "#666666"
+   :lane-fill-color "#CCCCCC"
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill :white
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Bluemountain
+  :bluemountain
+  {:pool-fill-color "#0B5394"
+   :lane-fill-color "#9FC5E8"
+   :font-color "#0B5394"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill :white
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Orangepeel
+  :orangepeel
+  {:pool-fill-color "#B45F06"
+   :lane-fill-color "#F6B26B"
+   :font-color "#B45F06"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#F6B26B"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Greenturtle
+  :greenturtle
+  {:pool-fill-color "#38761D"
+   :lane-fill-color "#93C47D"
+   :font-color "#38761D"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#93C47D"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Sunflower
+  :sunflower
+  {:pool-fill-color "#FFC300"
+   :lane-fill-color "#FFF68F"
+   :font-color "#FFC300"
+   :pool-title-font-color :black
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#FFF68F"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Purplerain
+  :purplerain
+  {:pool-fill-color "#660099"
+   :lane-fill-color "#B19CD9"
+   :font-color "#660099"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#B19CD9"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Rubyred
+  :rubyred
+  {:pool-fill-color "#FF005F"
+   :lane-fill-color "#FF869A"
+   :font-color "#FF005F"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#FF869A"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Tealwaters
+  :tealwaters
+  {:pool-fill-color "#008B8B"
+   :lane-fill-color "#00CCCC"
+   :font-color "#008B8B"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#00CCCC"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Seafoam
+  :seafoam
+  {:pool-fill-color "#3F889F"
+   :lane-fill-color "#80CBC4"
+   :font-color "#3F889F"
+   :pool-title-font-color :white
+   :lane-title-font-color :black
+   :background-fill :white
+   :task-fill "#80CBC4"
+   :task-stroke :black
+   :lane-body-font-color :black
+   :lane-body-fill-color :white}}}

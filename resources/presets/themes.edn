@@ -1,0 +1,288 @@
+{:themes
+ {:digital-transformation-classic
+  {:colors [:color-themes :business-classic],
+   :fonts [:fonts :classic],
+   :layout [:layouts :classic],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :none]},
+  :digital-transformation-wide
+  {:colors [:color-themes :business-classic],
+   :fonts [:fonts :classic],
+   :layout [:layouts :wide],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :none]},
+  :modern-blue
+  {:colors [:color-themes :default],
+   :fonts [:fonts :professional],
+   :layout [:layouts :default],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :round-rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :modern-blue]},
+  :default
+  {:colors [:color-themes :default],
+   :fonts [:fonts :professional],
+   :layout [:layouts :detailed],
+   :rules
+   {:task [:rules :task :completed-100 :high-progress],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :home-plate],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :professional]},
+  :pool-task-demo
+  {:colors [:color-themes :dark],
+   :fonts [:fonts :professional],
+   :layout [:layouts :best],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :linear-default]},
+  :compact
+  {:colors [:color-themes :default],
+   :fonts [:fonts :compact],
+   :layout [:layouts :compact],
+   :rules {:task [:rules :task :completed-100]},
+   :shapes
+   {:task {:default [:task :rect], :complete [:task :complete]}},
+   :gradients [:gradients :linear-default]},
+  :product-development
+  {:colors [:color-themes :default],
+   :fonts [:fonts :professional],
+   :layout [:layouts :best],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :round-rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :linear-default]},
+  :creative
+  {:colors [:color-themes :creative],
+   :fonts [:fonts :creative],
+   :layout [:layouts :default],
+   :rules
+   {:task [:rules :task :high-progress :low-progress],
+    :swimlane [:rules :swimlane :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :round-2-diag-rect],
+     :alert [:task :star-8],
+     :complete [:task :round-rect]}},
+   :gradients [:gradients :creative]},
+  :original-design
+  {:colors [:color-themes :original-design],
+   :fonts [:fonts :professional],
+   :layout [:layouts :default],
+   :layout-overrides
+   {:independent-task {:task-shape-pos :below, :pos "bottom"}},
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :pool-task]},
+   :shapes
+   {:task
+    {:default [:task :round-rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :linear-default]},
+  :product-development-classic
+  {:colors [:color-themes :default],
+   :fonts [:fonts :classic],
+   :layout [:layouts :classic],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :pool-header :pool-task]},
+   :shapes
+   {:task
+    {:default [:task :rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :none]},
+  :business-classic
+  {:colors [:color-themes :business-classic],
+   :fonts [:fonts :professional],
+   :layout [:layouts :detailed],
+   :rules
+   {:task [:rules :task :completed-100 :high-progress],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :home-plate],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :professional]},
+  :digital-transformation
+  {:colors [:color-themes :default],
+   :fonts [:fonts :professional],
+   :layout [:layouts :best],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :round-rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :linear-default]},
+  :elegant-purple
+  {:colors [:color-themes :default],
+   :fonts [:fonts :professional],
+   :layout [:layouts :default],
+   :rules
+   {:task [:rules :task :completed-100],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :round-rect],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :elegant-purple]},
+  :best
+  {:gradients [:gradients :best],
+   :layout [:layouts :best],
+   :colors [:color-themes :best],
+   :rules
+   {:task [:rules :task :best-task],
+    :swimlane
+    [:rules
+     :swimlane
+     :best-pool-header
+     :best-lane-header
+     :best-lane-task
+     :best-pool1-milestone
+     :best-pool23-milestone
+     :best-lane1-pool1-shape
+     :best-lane2-pool1-shape
+     :best-lane3-pool1-shape
+     :best-lane-pool2-shape
+     :best-lane-pool3-shape]},
+   :fonts [:fonts :creative],
+   :shapes
+   {:task
+    {:default [:task :round-2-diag-rect],
+     :alert [:task :star-8],
+     :complete [:task :round-rect]}}},
+  :professional
+  {:colors [:color-themes :default],
+   :fonts [:fonts :professional],
+   :layout [:layouts :detailed],
+   :rules
+   {:task [:rules :task :completed-100 :high-progress],
+    :swimlane [:rules :swimlane :pool-header :lane-task]},
+   :shapes
+   {:task
+    {:default [:task :home-plate],
+     :alert [:task :alert],
+     :complete [:task :complete]}},
+   :gradients [:gradients :professional]}
+
+  ;; === Legacy Themes ===
+
+  :greywoof
+  {:colors [:color-themes :greywoof]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :bluemountain
+  {:colors [:color-themes :bluemountain]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :orangepeel
+  {:colors [:color-themes :orangepeel]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :greenturtle
+  {:colors [:color-themes :greenturtle]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :sunflower
+  {:colors [:color-themes :sunflower]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :purplerain
+  {:colors [:color-themes :creative]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :rubyred
+  {:colors [:color-themes :rubyred]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :tealwaters
+  {:colors [:color-themes :tealwaters]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
+  :seafoam
+  {:colors [:color-themes :seafoam]
+   :fonts [:fonts :professional]
+   :layout [:layouts :detailed]
+   :rules {:task [:rules :task :completed-100]
+           :swimlane [:rules :swimlane :pool-header :lane-task]}
+   :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
+   :gradients [:gradients :none]}}}

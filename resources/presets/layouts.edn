@@ -1,0 +1,36 @@
+{:layouts
+ {:base {:x 20.0 :y 50.0 :font-size 16.0 :h 15.0
+         :pool {:gap 5
+                :lane-gap 0
+                :pool-width 80.0
+                :pool-font-size 12.0
+                :lane-header-width 95.15
+                :lane-header-font-size 10.0
+                :lane-height 30.0
+                :lane-min-height 28.0}
+         :group-box-width-percentage 0.2}
+
+  :default {}
+
+  :compact {:x 10.0 :y 30.0 :font-size 12.0 :h 10.0
+            :pool {:gap 2.0
+                   :lane-min-height 22.0}
+            :group-box-width-percentage 0.15}
+
+  :detailed {:x 30.0 :y 60.0 :font-size 18.0 :h 20.0
+             :pool {:gap 8.0
+                    :lane-min-height 28.0}
+             :group-box-width-percentage 0.25}
+
+  :tight {:x 15.0 :y 40.0 :font-size 14.0 :h 12.0
+          :pool {:lane-min-height 26.0}
+          :group-box-width-percentage 0.18}
+
+  :classic {:x 60.0 :y 95.0 :font-size 18.0 :h 15.0
+            :pool {:pool-width 100.0
+                   :lane-header-width 120.0
+                   :lane-height 25.0
+                   :lane-min-height 25.0}
+            :canvas-width 1280 :canvas-height 720}
+
+  :wide {:group-box-width-percentage 0.2}}}

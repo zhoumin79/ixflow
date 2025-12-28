@@ -1,0 +1,16 @@
+{:rules
+ {:task {:default {[:completed :any] {:shape :default}}},
+  :swimlane
+  {:pool-header
+   {[:pool-idx :any]
+    {:header {:fill-color [:pool-colors :mod-pool-idx]}}},
+   :lane-header
+   {[:lane-idx :any]
+    {:header {:fill-color [:lane-colors :mod-lane-idx]}}},
+   :lane-task
+   {[:lane-idx :any]
+    {:task {:fill-color [:lane-colors :mod-lane-idx]}}},
+   :pool-task
+   {[:pool-idx :any]
+    {:task {:fill-color [:pool-colors :mod-pool-idx]}}},
+   :default {[:pool-idx :any] {:header {:fill-color :default}}}}}}

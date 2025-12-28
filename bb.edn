@@ -1,0 +1,79 @@
+{:paths ["script" "." "smoke-test.bb"]
+ :tasks {:init (do (def standalone-jar-file "target/yzcx-rad-demo-full.jar")
+                   (def jar-file "target/yzcx-rad-demo.jar"))
+
+         lint-eastwood
+         {:task (clojure "-M:dev:eastwood '{:source-paths [\"src/main\" \"src/test\"}]'")}
+
+         ;; repl     (shell "iced repl -A:dev")
+         outdated (clojure "-M:outdated:nop --update")
+         tests    (do
+                    (clojure "-M:outdated:nop:1.8 --exclude=clojure/brew-install")
+                    (clojure "clojure -M:dev:1.9:test")
+                    (clojure "clojure -M:dev:test"))
+         lint     (do (shell "echo cljstyle") ;; I don't have clj-style
+                      (shell "clj-kondo --lint src:test"))
+         pom      (clojure "-Spom")
+         clean    (shell "rm -rf .cpcache .shadow-cljs target resources/public/js/main")
+         repl     (shell "lein repl")
+
+         cljs:clean
+         {:requires ([babashka.fs :as fs])
+          :task (do
+                  (fs/delete-tree ".shadow-cljs")
+                  (fs/delete-tree "resources/public/js")
+                  (fs/delete-tree "resources/public/workspaces/js"))}
+
+         cljs:install
+         {:task (shell "yarn install")}
+
+         dev:watch-cljs
+         {:depends [cljs:install]
+          :task (shell "clj -M:dev -m \"shadow.cljs.devtools.cli\" watch :main")}
+
+         ;; Release jobs
+         release:js
+         {:task (shell "clj -M:dev -m \"shadow.cljs.devtools.cli\" release :main")}
+
+         release:uberjar
+         {:task (shell "clj -T:build uber")}
+
+         release
+         {:depends [cljs:clean release:js release:uberjar]}
+
+         ;; run      (clojure "-A:dev:xtdb -M -m yzcx.main")
+         run      (shell "lein run")
+         start    (shell "yarn start")
+         pub      (shell "shadow-cljs release demo")
+         uberjar  {:depends [pom]
+                   :doc     "Build the best uberjar this side of the milkyway"
+                   :task    (clojure "-X:uberjar
+                                 :aot true
+                                 :main-class yzcx.main
+                                 :aliases [:xtdb]
+                                 :jar" standalone-jar-file)}
+         jar      {:depends [pom clean]
+                   :doc     "Build a regular jar without pomp and frills."
+                   :task    (clojure "-X:depstar jar :jar" jar-file)}
+         install  {:depends [jar]
+                   :task    (clojure "-X:deploy :installer :local :artifact" jar-file)}
+         -deploy  {:depends [jar]
+                   :task    (clojure "-X:deploy :installer :remote :artifact" jar-file)}
+         deploy   (when (System/getenv "CLOJARS_USERNAME")
+                    (shell "bb -deploy"))
+         docker   (shell "docker run --rm -v"
+                         (str (System/getProperty "user.dir") ":/src")
+                         "-w" "/src" "uochan/antq:latest")
+         coverage (clojure "-M:coverage:dev:nop --src-ns-path=src --test-ns-path=test --codecov")
+
+
+         compile-cljs (shell "npx shadow-cljs compile main")
+         smoke-test {:doc  "Start the app, run smoke test"
+                     :task (load-file "./smoke-test.bb")}
+         startdb (shell "pg_ctl -D /opt/homebrew/var/postgres start")
+         stopdb (shell "pg_ctl -D /opt/homebrew/var/postgres stop")
+
+         tw (shell "clojure -X:tw")
+         ai (shell "clojure -M:nrepl")
+         mcp (shell "clojure -X:mcp :port 7888")
+         }}

@@ -1,0 +1,37 @@
+{:name "Swimlane Test (Vertical)"
+ :description "Simple vertical swimlane layout test"
+ :theme {:name "default" :mode "light"}
+ :data {:config {:layout "swimlane" :direction "tb" :swimlane-mode "vertical"}
+        :pool-dsl "
+// Config
+direction: tb
+swimlane-mode: vertical
+
+// Swimlane Structure (Phases)
+\"Phases\" {
+  \"Phase 1: Concept\" {
+    Start
+    \"Idea Gen\"
+  }
+  
+  \"Phase 2: Dev\" {
+    \"Prototype\"
+    \"Code\"
+    \"Test\"
+  }
+  
+  \"Phase 3: Release\" {
+    \"Deploy\"
+    End
+  }
+}
+
+// Flow
+Start --> \"Idea Gen\"
+\"Idea Gen\" --> \"Prototype\"
+\"Prototype\" --> \"Code\"
+\"Code\" --> \"Test\"
+\"Test\" --> \"Deploy\"
+\"Test\" --> \"Code\" : Bug Found
+\"Deploy\" --> End
+"}}

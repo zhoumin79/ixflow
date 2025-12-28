@@ -1,0 +1,36 @@
+{:name "Nested Pool Demo"
+ :description "Demonstration of the new nested pool/lane DSL syntax"
+ :theme {:name "BLUEMOUNTAIN" :mode "light"}
+ :data {:config {:layout "swimlane" :direction "lr"}
+        :pool-dsl "title Nested Pool Demo
+width: 1200
+colourtheme: BLUEMOUNTAIN
+
+Product Development [color: lightblue] {
+  Product Manager {
+    \"Define Requirements\" [icon: list]
+    \"Create Roadmap\" [icon: map]
+  }
+  
+  Engineering {
+    \"Design Architecture\" [icon: cpu]
+    \"Implement Features\" [icon: code]
+    \"Run Tests\" [icon: check-circle]
+  }
+}
+
+QA Team [color: lightgreen] {
+  Testers {
+    \"Verify Fixes\" [icon: check-square]
+    \"Sign-off Release\" [icon: thumbs-up]
+  }
+}
+
+\"Define Requirements\" > \"Create Roadmap\"
+\"Create Roadmap\" > \"Design Architecture\"
+\"Design Architecture\" > \"Implement Features\"
+\"Implement Features\" > \"Run Tests\"
+\"Run Tests\" > \"Verify Fixes\" : Pass
+\"Run Tests\" --> \"Implement Features\" : Fail
+\"Verify Fixes\" > \"Sign-off Release\"
+"}}

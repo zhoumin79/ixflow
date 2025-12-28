@@ -1,0 +1,70 @@
+{:name "Expense Approval Demo"
+ :description "Comprehensive expense submission and approval flow demonstration"
+ :theme {:name "default" :mode "light"}
+ :data {:config {:layout "swimlane" :direction "tb"}
+        :pool-dsl "title Expense Submission and Approval Flow
+
+User [color: lightblue] {
+  Login [icon: log-in]
+  Access confirmed [type: event, icon: check-circle]
+  Start new expense report [icon: file-plus]
+  Upload receipts [icon: upload]
+  Reimbursed [type: event, icon: dollar-sign]
+  User rejected [type: event, label: Rejected, icon: x-circle]
+}
+
+System [color: orange] {
+  OCR extract date & amount [icon: calendar]
+  Check amount [type: gateway, icon: filter]
+  Auto-approve? [type: gateway, icon: check]
+  Auto-approved [type: event, icon: thumbs-up]
+  Send to manager [icon: send]
+  Process reimbursement [icon: credit-card]
+}
+
+Manager [color: green] {
+  Review expense [icon: eye]
+  Approve? [type: gateway, icon: check]
+  Approved [type: event, icon: thumbs-up]
+  Rejected [type: event, icon: x-circle]
+}
+
+// Connections within User pool
+Login > Access confirmed
+Access confirmed > Start new expense report
+Start new expense report > Upload receipts
+
+// User to System (dashed message flow)
+Upload receipts -- OCR extract date & amount : Receipts
+
+// System pool
+OCR extract date & amount > Check amount
+Check amount > Auto-approve? : Amount < $500
+Check amount --> Rejected : Amount > $500
+
+// Auto-approve gateway
+Auto-approve? > Auto-approved : Amount < $50
+Auto-approve? > Send to manager : $51–$500
+
+// Auto-approved to reimbursement
+Auto-approved > Process reimbursement
+
+// Send to manager to Manager pool (dashed message flow)
+Send to manager -- Review expense : Expense for approval
+
+// Manager pool
+Review expense > Approve?
+Approve? > Approved : Yes
+Approve? > Rejected : No
+
+// Approved to System (dashed message flow)
+Approved --> Process reimbursement : Approval
+
+// Process reimbursement to User pool (dashed message flow)
+Process reimbursement --> Reimbursed : Reimbursement
+Upload receipts > Reimbursed
+
+// Rejected to User pool (dashed message flow)
+Rejected --> Reimbursed : Notify user
+Upload receipts > User rejected
+"}}
