@@ -1,6 +1,7 @@
 (ns xflow.template
   (:require [xcommon.io :as xio]
-            [xflow.text2flow :as text2flow]))
+            [xflow.text2flow :as text2flow]
+            [clojure.string :as str]))
 
 (defn load-template
   "Load a workflow template EDN from resources/templates."
@@ -17,5 +18,10 @@
   (let [template (load-template template-name)
         data (:data template)
         dsl (:pool-dsl data)
-        cleaned-output-file (clojure.string/replace output-file #"\+" "/")]
-    (text2flow/render dsl cleaned-output-file)))
+        config (:config data)
+        ;; Inject config from EDN into DSL string so parser picks it up
+        config-lines (map (fn [[k v]] (str (name k) ": " v)) config)
+        full-dsl (str (str/join "\n" config-lines) "\n" dsl)
+
+        cleaned-output-file (str/replace output-file #"\+" "/")]
+    (text2flow/render full-dsl cleaned-output-file)))
