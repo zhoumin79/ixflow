@@ -1,0 +1,19 @@
+{:name "Simple Workflow Demo"
+ :description "A basic workflow without pools or lanes, demonstrating simple layout."
+ :theme "default"
+ :data {:config {:layout "simple" :direction "tb"}
+        :pool-dsl "
+title Simple Workflow Demo
+
+start [label: Start]
+process [label: Process Data]
+decision [label: Check Result]
+end [label: End]
+error [label: Error Handler]
+
+start -> process
+process -> decision
+decision -> end : OK
+decision -> error : Fail
+error -> process : Retry
+"}}

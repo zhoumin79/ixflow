@@ -124,7 +124,7 @@
 
              ;; Node Label
              [:text {:x cx :y cy :text-anchor "middle" :dominant-baseline "middle" :font-size 12 :font-weight "bold"}
-              (h-util/escape-html (:id n))]
+              (h-util/escape-html (or (-> n :props :label) (:id n)))]
 
              ;; Icon Badge
              (when icon-char

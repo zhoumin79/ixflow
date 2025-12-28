@@ -2,6 +2,7 @@
   (:require [xflow.layout.sugiyama :as sugiyama]
             [xflow.layout.strategy.swimlane :as swimlane]
             [xflow.layout.strategy.cluster :as cluster]
+            [xflow.layout.strategy.simple :as simple]
             [xflow.layout.routing.manhattan :as manhattan]))
 
 (defn- assign-coordinates [nodes edges pools options]
@@ -45,10 +46,19 @@
      :height height}))
 
 (defn layout [nodes edges pools options]
-  (let [layout-mode (:layout options)
-        ;; Force vertical mode for cluster layout to ensure routing matches coordinate assignment
-        options (if (= layout-mode "cluster")
-                  (assoc options :swimlane-mode "vertical")
-                  options)]
-    (-> (assign-coordinates nodes edges pools options)
-        (manhattan/route-edges options))))
+  (let [layout-mode (:layout options)]
+    (if (= layout-mode "simple")
+      ;; Simple Layout Strategy (No pools/lanes/clusters)
+      (let [direction (:direction options "tb")
+            ;; Map direction to routing mode: tb -> vertical, lr -> horizontal
+            routing-mode (if (= direction "tb") "vertical" "horizontal")
+            options (assoc options :swimlane-mode routing-mode)]
+        (-> (simple/assign-coordinates nodes edges options)
+            (manhattan/route-edges options)))
+
+      ;; Complex Layout Strategy (Swimlanes/Clusters)
+      (let [options (if (= layout-mode "cluster")
+                      (assoc options :swimlane-mode "vertical")
+                      options)]
+        (-> (assign-coordinates nodes edges pools options)
+            (manhattan/route-edges options))))))
