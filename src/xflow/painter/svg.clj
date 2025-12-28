@@ -28,6 +28,49 @@
    "cpu" "⚙️"
    "code" "💻"})
 
+(defn- rounded-path [points radius]
+  (if (< (count points) 3)
+    ;; Fallback for simple lines
+    (str "M" (:x (first points)) "," (:y (first points)) " "
+         (str/join " " (map (fn [p] (str "L" (:x p) "," (:y p))) (rest points))))
+
+    ;; Generate path with curves
+    (let [start (first points)
+          path-cmds (atom [(str "M" (:x start) "," (:y start))])]
+      (dotimes [i (- (count points) 2)]
+        (let [curr (nth points (inc i))
+              prev (nth points i)
+              next (nth points (+ i 2))
+
+              ;; Vectors
+              dx1 (- (:x curr) (:x prev))
+              dy1 (- (:y curr) (:y prev))
+              len1 (Math/sqrt (+ (* dx1 dx1) (* dy1 dy1)))
+
+              dx2 (- (:x next) (:x curr))
+              dy2 (- (:y next) (:y curr))
+              len2 (Math/sqrt (+ (* dx2 dx2) (* dy2 dy2)))
+
+              ;; Effective radius (limit by segment length)
+              r (min radius (/ len1 2) (/ len2 2))
+
+              ;; Start of curve (backed off from corner)
+              p1-x (- (:x curr) (* r (/ dx1 len1)))
+              p1-y (- (:y curr) (* r (/ dy1 len1)))
+
+              ;; End of curve (forward from corner)
+              p2-x (+ (:x curr) (* r (/ dx2 len2)))
+              p2-y (+ (:y curr) (* r (/ dy2 len2)))]
+
+          (swap! path-cmds conj (str "L" p1-x "," p1-y))
+          (swap! path-cmds conj (str "Q" (:x curr) "," (:y curr) " " p2-x "," p2-y))))
+
+      ;; Final segment
+      (let [last-pt (last points)]
+        (swap! path-cmds conj (str "L" (:x last-pt) "," (:y last-pt))))
+
+      (str/join " " @path-cmds))))
+
 (defn render-svg [layout]
   (let [nodes (:nodes layout)
         edges (:edges layout)
@@ -43,9 +86,24 @@
            :viewBox (str "0 0 " width " " (+ height (if title 50 0)))
            :style "font-family: sans-serif;"}
 
+     ;; Definitions
+     [:defs
+      [:marker {:id "arrow" :markerWidth 10 :markerHeight 10 :refX 8 :refY 3 :orient "auto" :markerUnits "strokeWidth"}
+       [:path {:d "M0,0 L0,6 L9,3 z" :fill "#555"}]]
+
+      ;; Drop Shadow Filter
+      [:filter {:id "drop-shadow" :x "-20%" :y "-20%" :width "150%" :height "150%"}
+       [:feGaussianBlur {:in "SourceAlpha" :stdDeviation "2" :result "blur"}]
+       [:feOffset {:in "blur" :dx "2" :dy "2" :result "offsetBlur"}]
+       [:feComponentTransfer
+        [:feFuncA {:type "linear" :slope "0.3"}]] ;; Opacity of shadow
+       [:feMerge
+        [:feMergeNode] ;; Shadow
+        [:feMergeNode {:in "SourceGraphic"}]]]] ;; Original
+
      ;; Title
      (when title
-       [:text {:x (/ width 2) :y 30 :text-anchor "middle" :font-size 20 :font-weight "bold"} (h-util/escape-html title)])
+       [:text {:x (/ width 2) :y 30 :text-anchor "middle" :font-size 20 :font-weight "bold" :fill "#333"} (h-util/escape-html title)])
 
      [:g {:transform (if title "translate(0, 50)" "translate(0, 0)")}
       ;; Draw Swimlanes (Backgrounds) or Clusters
@@ -85,12 +143,11 @@
       (for [e edges]
         (let [points (:points e)] ;; Expecting pre-calculated points from layout
           (when points
-            (let [d (str "M" (:x (first points)) "," (:y (first points)) " "
-                         (str/join " " (map (fn [p] (str "L" (:x p) "," (:y p))) (rest points))))]
+            (let [d (rounded-path points 10)] ;; Use rounded path with radius 10
               [:g
                [:path {:d d
                        :fill "none"
-                       :stroke "black" :stroke-width 2
+                       :stroke "#555" :stroke-width 2
                        :stroke-dasharray (if (= (:type e) :dashed) "5,5" "none")
                        :marker-end "url(#arrow)"}]
                (when (:label e)
@@ -98,8 +155,8 @@
                  (let [mid-idx (int (/ (count points) 2))
                        mid-p (nth points mid-idx)]
                    [:g
-                    [:rect {:x (- (:x mid-p) 20) :y (- (:y mid-p) 10) :width 40 :height 20 :fill "white" :opacity 0.8}]
-                    [:text {:x (:x mid-p) :y (:y mid-p) :fill "black" :font-size 10 :text-anchor "middle" :dominant-baseline "middle"} (h-util/escape-html (:label e))]]))]))))
+                    [:rect {:x (- (:x mid-p) 20) :y (- (:y mid-p) 10) :width 40 :height 20 :fill "white" :opacity 0.9 :rx 3}]
+                    [:text {:x (:x mid-p) :y (:y mid-p) :fill "#333" :font-size 11 :text-anchor "middle" :dominant-baseline "middle"} (h-util/escape-html (:label e))]]))]))))
 
       ;; Draw Nodes
       (for [n nodes]
@@ -111,28 +168,23 @@
                 cy (+ (:y n) (/ h 2))
                 icon-key (-> n :props :icon)
                 icon-char (get icon-map icon-key)]
-            [:g
+            [:g {:filter "url(#drop-shadow)"} ;; Apply shadow
              (case shape
                "diamond" [:polygon {:points (str cx "," (:y n) " " (+ (:x n) w) "," cy " " cx "," (+ (:y n) h) " " (:x n) "," cy)
-                                    :fill bg-color :stroke "black" :stroke-width 1.5}]
+                                    :fill bg-color :stroke "#333" :stroke-width 1.5}]
                "oval" [:rect {:x (:x n) :y (:y n) :width w :height h :rx (/ h 2) :ry (/ h 2)
-                              :fill bg-color :stroke "black" :stroke-width 1.5}]
+                              :fill bg-color :stroke "#333" :stroke-width 1.5}]
                ;; Default rect
                [:rect {:x (:x n) :y (:y n) :width w :height h
                        :fill bg-color
-                       :stroke "black" :rx 5 :stroke-width 1.5}])
+                       :stroke "#333" :rx 6 :stroke-width 1.5}])
 
              ;; Node Label
-             [:text {:x cx :y cy :text-anchor "middle" :dominant-baseline "middle" :font-size 12 :font-weight "bold"}
+             [:text {:x cx :y cy :text-anchor "middle" :dominant-baseline "middle" :font-size 12 :font-weight "bold" :fill "#222"}
               (h-util/escape-html (or (-> n :props :label) (:id n)))]
 
              ;; Icon Badge
              (when icon-char
                [:g
-                [:circle {:cx (:x n) :cy (:y n) :r 12 :fill "white" :stroke "black" :stroke-width 1}]
-                [:text {:x (:x n) :y (:y n) :text-anchor "middle" :dominant-baseline "middle" :font-size 14} icon-char]])])))
-
-      ;; Definitions
-      [:defs
-       [:marker {:id "arrow" :markerWidth 10 :markerHeight 10 :refX 10 :refY 3 :orient "auto" :markerUnits "strokeWidth"}
-        [:path {:d "M0,0 L0,6 L9,3 z" :fill "black"}]]]]]))
+                [:circle {:cx (:x n) :cy (:y n) :r 12 :fill "white" :stroke "#333" :stroke-width 1}]
+                [:text {:x (:x n) :y (:y n) :text-anchor "middle" :dominant-baseline "middle" :font-size 14} icon-char]])])))]]))

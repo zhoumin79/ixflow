@@ -3,7 +3,10 @@
 
 (defn assign-coordinates [nodes edges options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
-        rank-groups (group-by :rank ranked-nodes)
+        ;; --- Optimization: Apply Crossing Minimization ---
+        ordered-nodes (sugiyama/order-nodes ranked-nodes edges)
+        rank-groups (group-by :rank ordered-nodes)
+        ;; -------------------------------------------------
         max-rank (apply max (keys rank-groups))
 
         direction (:direction options "tb") ;; "tb" or "lr"
@@ -31,7 +34,7 @@
         processed-nodes
         (mapcat
          (fn [r]
-           (let [nodes-in-rank (get rank-groups r)
+           (let [nodes-in-rank (sort-by :order (get rank-groups r)) ;; Ensure sorting by optimized order
                  rank-size (get rank-dimensions r)
                  start-offset (/ (- max-rank-size rank-size) 2)]
 

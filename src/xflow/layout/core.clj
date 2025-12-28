@@ -7,16 +7,22 @@
 
 (defn- assign-coordinates [nodes edges pools options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
+        ;; --- Optimization: Apply Crossing Minimization ---
+        ordered-nodes (sugiyama/order-nodes ranked-nodes edges)
+        ;; Sort by rank then order to ensure correct processing order
+        sorted-nodes (sort-by (juxt :rank :order) ordered-nodes)
+        ;; -------------------------------------------------
+
         layout-mode (:layout options)
         mode (if (= layout-mode "cluster") "vertical" (:swimlane-mode options "horizontal"))
         direction (:direction options "lr")
 
         ;; Group by Swimlane
-        lanes-data (swimlane/group-by-swimlane ranked-nodes pools options)
+        lanes-data (swimlane/group-by-swimlane sorted-nodes pools options)
         lanes (swimlane/calculate-lane-dimensions lanes-data mode)
 
         ;; Calculate Node Positions (Initial Pass)
-        initial-nodes (swimlane/assign-initial-coordinates ranked-nodes lanes options)
+        initial-nodes (swimlane/assign-initial-coordinates sorted-nodes lanes options)
 
         ;; -- Cluster Layout Post-Processing --
         processed-nodes
