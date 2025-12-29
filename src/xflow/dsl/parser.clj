@@ -1,13 +1,20 @@
 (ns xflow.dsl.parser
   (:require [clojure.string :as str]))
 
+(defn- strip-quotes [s]
+  (if (string? s)
+    (-> s
+        str/trim
+        (str/replace #"^\"+|\"+$" ""))
+    s))
+
 (defn- parse-props [props-str]
   (if (empty? props-str)
     {}
     (->> (str/split props-str #",")
          (map (fn [p]
                 (let [[k v] (str/split p #":" 2)]
-                  [(keyword (str/trim k)) (some-> v str/trim)])))
+                  [(keyword (str/trim k)) (some-> v strip-quotes)])))
          (into {}))))
 
 (defn- parse-line [line context]
@@ -18,14 +25,14 @@
 
       ;; Title: title ...
       (str/starts-with? line "title ")
-      (assoc-in context [:config :title] (str/trim (subs line 6)))
+      (assoc-in context [:config :title] (strip-quotes (subs line 6)))
 
       ;; Config: key: value
       (re-matches #"^([a-zA-Z0-9-]+)\s*:\s*(.+)$" line)
       (let [[_ k v] (re-matches #"^([a-zA-Z0-9-]+)\s*:\s*(.+)$" line)]
         ;; Only treat as config if we are NOT inside a pool/block
         (if (empty? (:stack context))
-          (assoc-in context [:config (keyword k)] (str/trim v))
+          (assoc-in context [:config (keyword k)] (strip-quotes v))
           context))
 
       ;; Pool Start: Name [props] {
@@ -62,7 +69,7 @@
                   :from (str/trim (str/replace from #"\"" ""))
                   :to (str/trim (str/replace to #"\"" ""))
                   :type type
-                  :label (some-> label str/trim)}]
+                  :label (some-> label strip-quotes)}]
         (update context :edges conj edge))
 
       ;; Node: Name [props]

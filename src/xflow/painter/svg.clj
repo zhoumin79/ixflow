@@ -97,6 +97,47 @@
 
       (str/join " " @cmds))))
 
+(defn- strip-quotes [s]
+  (if (string? s)
+    (-> s
+        str/trim
+        (str/replace #"^\"+|\"+$" ""))
+    s))
+
+(defn- calculate-label-pos [points]
+  (let [cnt (count points)]
+    (if (= cnt 2)
+      ;; Midpoint of segment
+      (let [p0 (first points)
+            p1 (second points)
+            ;; Initial guess at 0.4
+            t 0.4
+            pos-x (+ (:x p0) (* (- (:x p1) (:x p0)) t))
+            pos-y (+ (:y p0) (* (- (:y p1) (:y p0)) t))
+
+            ;; Heuristic to avoid overlap with target (p1)
+            dx (- (:x p1) (:x p0))
+            dy (- (:y p1) (:y p0))
+            dist (Math/sqrt (+ (* dx dx) (* dy dy)))]
+
+        ;; If distance is small, ensure we are far enough from p1
+        (if (> (Math/abs dy) (Math/abs dx))
+          ;; Vertical layout: check Y distance
+          (let [safe-y (- (:y p1) 35)] {:x pos-x :y (min pos-y safe-y)})
+          ;; Horizontal layout: check X distance (assuming L->R)
+          (if (> dx 0)
+            (let [safe-x (- (:x p1) 40)] {:x (min pos-x safe-x) :y pos-y})
+            {:x pos-x :y pos-y}))) ;; Backwards/other cases, leave as is
+
+      ;; Multi-point path (Spline or Manhattan)
+      (let [mid-idx (int (/ cnt 2))]
+        (if (odd? cnt)
+          (nth points mid-idx)
+          (let [p1 (nth points (dec mid-idx))
+                p2 (nth points mid-idx)]
+            {:x (/ (+ (:x p1) (:x p2)) 2)
+             :y (/ (+ (:y p1) (:y p2)) 2)}))))))
+
 (defn render-svg [layout]
   (let [nodes (:nodes layout)
         edges (:edges layout)
@@ -179,12 +220,11 @@
                        :stroke-dasharray (if (= (:type e) :dashed) "5,5" "none")
                        :marker-end "url(#arrow)"}]
                (when (:label e)
-                 ;; Draw label at midpoint
-                 (let [mid-idx (int (/ (count points) 2))
-                       mid-p (nth points mid-idx)]
+                 ;; Draw label at calculated position
+                 (let [pos (calculate-label-pos points)]
                    [:g
-                    [:rect {:x (- (:x mid-p) 20) :y (- (:y mid-p) 10) :width 40 :height 20 :fill "white" :opacity 0.9 :rx 3}]
-                    [:text {:x (:x mid-p) :y (:y mid-p) :fill "#333" :font-size 11 :text-anchor "middle" :dominant-baseline "middle"} (h-util/escape-html (:label e))]]))]))))
+                    [:rect {:x (- (:x pos) 20) :y (- (:y pos) 10) :width 40 :height 20 :fill "white" :opacity 0.9 :rx 3}]
+                    [:text {:x (:x pos) :y (:y pos) :fill "#333" :font-size 11 :text-anchor "middle" :dominant-baseline "middle"} (h-util/escape-html (strip-quotes (:label e)))]]))]))))
 
       ;; Draw Nodes
       (for [n nodes]
@@ -209,7 +249,7 @@
 
              ;; Node Label
              [:text {:x cx :y cy :text-anchor "middle" :dominant-baseline "middle" :font-size 12 :font-weight "bold" :fill "#222"}
-              (h-util/escape-html (or (-> n :props :label) (:id n)))]
+              (h-util/escape-html (strip-quotes (or (-> n :props :label) (:id n))))]
 
              ;; Icon Badge
              (when icon-char
