@@ -1,0 +1,53 @@
+{:data
+ {:config {:layout "simple"
+           :direction "tb"
+           :routing "spline"
+           :title "医院就诊流程"}
+  :pool-dsl "
+// Nodes
+Start [shape: oval, label: \"患者到达医院\", color: #e3f2fd]
+Register [shape: rect, label: \"挂号\", icon: file-text, color: #e1f5fe]
+Wait1 [shape: rect, label: \"等待叫号\", icon: calendar, color: #fff3e0]
+Consult [shape: rect, label: \"医生问诊\", icon: user, color: #e8f5e9]
+Examine [shape: rect, label: \"体格检查\", icon: eye, color: #e8f5e9]
+NeedTest [shape: diamond, label: \"需要检查?\", color: #fff9c4]
+
+Test [shape: rect, label: \"进行检查\", icon: zap, color: #f3e5f5]
+Wait2 [shape: rect, label: \"等待检查结果\", icon: calendar, color: #fff3e0]
+Diagnose [shape: rect, label: \"医生诊断\", icon: user, color: #e8f5e9]
+
+NeedHospital [shape: diamond, label: \"需要住院?\", color: #fff9c4]
+
+Hospitalize [shape: rect, label: \"办理住院手续\", icon: list, color: #ffebee]
+Prescribe [shape: rect, label: \"开具处方\", icon: file-text, color: #e0f2f1]
+
+Pay [shape: rect, label: \"缴费\", icon: credit-card, color: #fff8e1]
+GetMedicine [shape: rect, label: \"取药\", icon: package, color: #e0f7fa]
+
+End1 [shape: oval, label: \"住院治疗\", color: #ffccbc]
+End2 [shape: oval, label: \"离开医院\", color: #c8e6c9]
+
+// Edges
+Start -> Register
+Register -> Wait1
+Wait1 -> Consult
+Consult -> Examine
+Examine -> NeedTest
+
+NeedTest -> Test : 是
+NeedTest -> Diagnose : 否
+
+Test -> Wait2
+Wait2 -> Diagnose
+
+Diagnose -> NeedHospital
+
+NeedHospital -> Hospitalize : 是
+NeedHospital -> Prescribe : 否
+
+Hospitalize -> End1
+
+Prescribe -> Pay
+Pay -> GetMedicine
+GetMedicine -> End2
+"}}

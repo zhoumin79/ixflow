@@ -17,7 +17,8 @@
         config (:config model)
         options {:direction (or (:direction config) "lr") ;; lr or tb
                  :swimlane-mode (or (:swimlane-mode config) "horizontal")
-                 :layout (:layout config)} ;; Pass layout mode
+                 :layout (:layout config) ;; Pass layout mode
+                 :routing (:routing config)} ;; Pass routing mode (spline or manhattan)
 
         _ (println "Layout options:" options)
         ;; Use new layout engine

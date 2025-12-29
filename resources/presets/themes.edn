@@ -47,7 +47,7 @@
     :swimlane [:rules :swimlane :pool-header :lane-task]},
    :shapes
    {:task
-    {:default [:task :home-plate],
+    {:default [:task :round-rect],
      :alert [:task :alert],
      :complete [:task :complete]}},
    :gradients [:gradients :professional]},
@@ -94,8 +94,8 @@
     :swimlane [:rules :swimlane :lane-task]},
    :shapes
    {:task
-    {:default [:task :round-2-diag-rect],
-     :alert [:task :star-8],
+    {:default [:task :round-rect],
+     :alert [:task :alert],
      :complete [:task :round-rect]}},
    :gradients [:gradients :creative]},
   :original-design
@@ -135,7 +135,7 @@
     :swimlane [:rules :swimlane :pool-header :lane-task]},
    :shapes
    {:task
-    {:default [:task :home-plate],
+    {:default [:task :round-rect],
      :alert [:task :alert],
      :complete [:task :complete]}},
    :gradients [:gradients :professional]},
@@ -187,8 +187,8 @@
    :fonts [:fonts :creative],
    :shapes
    {:task
-    {:default [:task :round-2-diag-rect],
-     :alert [:task :star-8],
+    {:default [:task :round-rect],
+     :alert [:task :alert],
      :complete [:task :round-rect]}}},
   :professional
   {:colors [:color-themes :default],
@@ -199,7 +199,7 @@
     :swimlane [:rules :swimlane :pool-header :lane-task]},
    :shapes
    {:task
-    {:default [:task :home-plate],
+    {:default [:task :round-rect],
      :alert [:task :alert],
      :complete [:task :complete]}},
    :gradients [:gradients :professional]}

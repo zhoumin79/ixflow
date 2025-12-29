@@ -1,44 +1,44 @@
 {:shapes
  {:task
-  {:home-plate
-   {:type :home-plate, :width 20.0, :height 15.0, :fill :solid},
-   :alert
-   {:type :star-8,
-    :width 15.0,
-    :height 15.0,
-    :fill :gradient,
-    :stroke :thick},
-   :leaf {:type :leaf, :height 18.46, :fill :gradient},
-   :round-rect
-   {:type :round-rect,
-    :width 22.0,
-    :height 15.0,
-    :fill :solid,
-    :radius 5.0},
-   :ellipse {:type :ellipse, :height 18.46, :fill :gradient},
-   :chevron
-   {:type :chevron, :width 25.0, :height 15.0, :fill :gradient},
-   :round-2-diag-rect
-   {:type :round-2-diag-rect,
-    :width 22.0,
-    :height 15.0,
-    :fill :solid,
-    :radius 5.0},
-   :complete
-   {:type :rect,
-    :width 20.0,
-    :height 15.0,
-    :fill :solid,
-    :border :dashed},
-   :rect
-   {:type :rect,
-    :width 20.0,
-    :height 15.0,
-    :fill :solid,
-    :corners :square},
-   :round-1-rect
-   {:type :round-1-rect,
-    :width 22.0,
-    :height 15.0,
-    :fill :solid,
-    :radius 5.0}}}}
+  {:rect {:type :rect
+          :width 20.0
+          :height 15.0
+          :fill :solid
+          :corners :square}
+
+   :round-rect {:type :round-rect
+                :width 22.0
+                :height 15.0
+                :fill :solid
+                :radius 6.0}
+
+   :complete {:type :rect
+              :width 20.0
+              :height 15.0
+              :fill :solid
+              :border :dashed}
+
+   :alert {:type :round-rect
+           :width 22.0
+           :height 15.0
+           :fill :solid
+           :radius 6.0
+           :stroke :thick}}
+
+  :gateway
+  {:decision {:type :diamond
+              :width 18.0
+              :height 18.0
+              :fill :solid}}
+
+  :event
+  {:start {:type :ellipse
+           :width 16.0
+           :height 16.0
+           :fill :solid}
+
+   :end {:type :ellipse
+         :width 16.0
+         :height 16.0
+         :fill :solid
+         :stroke :thick}}}}

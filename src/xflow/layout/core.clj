@@ -3,7 +3,8 @@
             [xflow.layout.strategy.swimlane :as swimlane]
             [xflow.layout.strategy.cluster :as cluster]
             [xflow.layout.strategy.simple :as simple]
-            [xflow.layout.routing.manhattan :as manhattan]))
+            [xflow.layout.routing.manhattan :as manhattan]
+            [xflow.layout.routing.spline :as spline]))
 
 (defn- assign-coordinates [nodes edges pools options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
@@ -123,7 +124,11 @@
                :height (+ max-y padding))))))
 
 (defn layout [nodes edges pools options]
-  (let [layout-mode (:layout options)]
+  (let [layout-mode (:layout options)
+        routing-mode (:routing options "manhattan") ;; Default to manhattan
+        route-fn (if (= routing-mode "spline")
+                   spline/route-edges
+                   manhattan/route-edges)]
     (if (= layout-mode "simple")
       ;; Simple Layout Strategy (No pools/lanes/clusters)
       (let [direction (:direction options "tb")
@@ -131,7 +136,7 @@
             routing-mode (if (= direction "tb") "vertical" "horizontal")
             options (assoc options :swimlane-mode routing-mode)]
         (-> (simple/assign-coordinates nodes edges options)
-            (manhattan/route-edges options)
+            (route-fn options)
             (normalize-layout)))
 
       ;; Complex Layout Strategy (Swimlanes/Clusters)
@@ -139,5 +144,5 @@
                       (assoc options :swimlane-mode "vertical")
                       options)]
         (-> (assign-coordinates nodes edges pools options)
-            (manhattan/route-edges options)
+            (route-fn options)
             (normalize-layout))))))

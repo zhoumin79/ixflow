@@ -71,6 +71,32 @@
 
       (str/join " " @path-cmds))))
 
+(defn- curve-path [points]
+  (if (< (count points) 2)
+    ""
+    (let [start (first points)
+          cmds (atom [(str "M" (:x start) "," (:y start))])]
+      (dotimes [i (dec (count points))]
+        (let [p0 (nth points i)
+              p1 (nth points (inc i))
+
+              ;; Vertical layout heuristic (assuming TB for now, logic can be adapted)
+              ;; If mainly vertical movement:
+              dy (- (:y p1) (:y p0))
+
+              ;; Control points for a sigmoid S-curve
+              ;; CP1 is vertically below P0
+              cp1-x (:x p0)
+              cp1-y (+ (:y p0) (* dy 0.5))
+
+              ;; CP2 is vertically above P1
+              cp2-x (:x p1)
+              cp2-y (- (:y p1) (* dy 0.5))]
+
+          (swap! cmds conj (str "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " (:x p1) "," (:y p1)))))
+
+      (str/join " " @cmds))))
+
 (defn render-svg [layout]
   (let [nodes (:nodes layout)
         edges (:edges layout)
@@ -143,7 +169,9 @@
       (for [e edges]
         (let [points (:points e)] ;; Expecting pre-calculated points from layout
           (when points
-            (let [d (rounded-path points 10)] ;; Use rounded path with radius 10
+            (let [d (if (= (:routing-type e) :spline)
+                      (curve-path points)
+                      (rounded-path points 10))] ;; Use rounded path with radius 10
               [:g
                [:path {:d d
                        :fill "none"

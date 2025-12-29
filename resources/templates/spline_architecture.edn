@@ -1,0 +1,35 @@
+{:data
+ {:config {:layout "simple"
+           :direction "tb"
+           :routing "spline"
+           :title "Microservices Architecture"}
+  :pool-dsl "
+// Nodes
+Gateway [shape: rect, icon: globe, color: #e3f2fd]
+Auth [shape: rect, icon: log-in, color: #f3e5f5]
+User [shape: rect, icon: user, color: #e8f5e9]
+Order [shape: rect, icon: list, color: #fff3e0]
+Payment [shape: rect, icon: credit-card, color: #ffebee]
+Notification [shape: rect, icon: send, color: #e0f2f1]
+
+// Databases (using oval as cylinder proxy)
+DB_User [shape: oval, icon: cpu, color: #fafafa]
+DB_Order [shape: oval, icon: cpu, color: #fafafa]
+
+// Edges - Main Flow
+Gateway -> Auth : Verify Token
+Gateway -> User : /users
+Gateway -> Order : /orders
+Auth -> User : Identity
+
+// Edges - Business Logic
+Order -> Payment : Process Pay
+Order -> User : Validate User
+Order -> Notification : Order Placed
+
+// Edges - Data Persistence
+User -> DB_User : Read/Write
+Order -> DB_Order : Read/Write
+Payment -> DB_Order : Update Status
+Notification -> User : Email Sent
+"}}
