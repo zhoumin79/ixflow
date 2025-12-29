@@ -11,7 +11,7 @@
 
         ;; --- Phase 3: Insert Dummy Nodes for Long Edges ---
         ;; This splits long edges into segments with dummy nodes
-        {:keys [nodes edges dummies] :as graph-with-dummies}
+        {:keys [nodes dummies] :as graph-with-dummies}
         (sugiyama/insert-dummy-nodes ranked-nodes edges)
 
         ;; Assign swimlane-id to dummy nodes (inherit from source)
@@ -80,7 +80,8 @@
      :edges edges-with-points
      :swimlanes swimlane-geoms
      :width width
-     :height height}))
+     :height height})) ;; Segments
+        ;; --------------------------------------------------
 
 (defn- normalize-layout [{:keys [nodes edges swimlanes width height] :as layout-result}]
   (let [;; Collect all points to find bounds

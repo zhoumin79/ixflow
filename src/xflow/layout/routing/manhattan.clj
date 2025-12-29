@@ -56,18 +56,34 @@
               (not (check try-neg)) try-neg
               :else (recur (+ offset 20)))))))))
 
-(defn- find-safe-channel [p1 p2 nodes mode]
+(defn- find-safe-channel [p1 p2 nodes mode side]
   ;; Finds a safe channel for side-loop
-  ;; For TB (Left-Left): Vertical channel to the left of p1.x and p2.x
-  ;; For LR (Top-Top): Horizontal channel above p1.y and p2.y
+  ;; mode: "horizontal" (LR) or "vertical" (TB)
+  ;; side: :left, :right, :top, :bottom
+
   (let [vertical? (not= mode "horizontal")
 
-        start-val (if vertical?
-                    (- (min (:x p1) (:x p2)) 30)
-                    (- (min (:y p1) (:y p2)) 30))
+        ;; Determine coordinate accessors and search direction
+        val-fn (if vertical? :x :y)
+        min-fn min
+        max-fn max
 
+        ;; Base coordinate to start searching from
+        ;; For Left/Top: min - 30
+        ;; For Right/Bottom: max + 30
+        start-val (case side
+                    :left (- (min (:x p1) (:x p2)) 30)
+                    :right (+ (max (+ (:x p1) (:w p1 0)) (+ (:x p2) (:w p2 0))) 30)
+                    :top (- (min (:y p1) (:y p2)) 30)
+                    :bottom (+ (max (+ (:y p1) (:h p1 0)) (+ (:y p2) (:h p2 0))) 30)
+                    0)
+
+        ;; Segment bounds (orthogonal to search direction)
         seg-min (if vertical? (min (:y p1) (:y p2)) (min (:x p1) (:x p2)))
         seg-max (if vertical? (max (:y p1) (:y p2)) (max (:x p1) (:x p2)))
+
+        ;; Search increment (+20 or -20)
+        increment (if (contains? #{:right :bottom} side) 20 -20)
 
         check (fn [val]
                 (let [segment (if vertical?
@@ -78,12 +94,12 @@
     (loop [offset 0]
       (if (> offset 200)
         start-val
-        (let [try-pos (- start-val offset)]
+        (let [try-pos (+ start-val (* offset (/ increment 20)))] ;; offset is always +ve in loop
           (if (not (check try-pos))
             try-pos
             (recur (+ offset 20))))))))
 
-(defn- select-ports [n1 n2 mode]
+(defn select-ports [n1 n2 mode]
   (let [vertical? (not= mode "horizontal")
         margin 20]
     (if vertical?
@@ -96,10 +112,19 @@
           {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-bottom}
            :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-top}
            :strategy :standard}
-          ;; Back-edge or side-by-side: Loop around Left side
-          {:p1 {:x (:x n1) :y (+ (:y n1) (/ (:h n1) 2))} ;; Left
-           :p2 {:x (:x n2) :y (+ (:y n2) (/ (:h n2) 2))} ;; Left
-           :strategy :side-loop}))
+          ;; Back-edge or side-by-side: Loop around Side
+          ;; Heuristic: If n1 is to the right of n2, loop Right. Else Left.
+          (let [cx1 (+ (:x n1) (/ (:w n1) 2))
+                cx2 (+ (:x n2) (/ (:w n2) 2))
+                side (if (> cx1 cx2) :right :left)]
+            {:p1 (if (= side :left)
+                   {:x (:x n1) :y (+ (:y n1) (/ (:h n1) 2))}
+                   {:x (+ (:x n1) (:w n1)) :y (+ (:y n1) (/ (:h n1) 2))})
+             :p2 (if (= side :left)
+                   {:x (:x n2) :y (+ (:y n2) (/ (:h n2) 2))}
+                   {:x (+ (:x n2) (:w n2)) :y (+ (:y n2) (/ (:h n2) 2))})
+             :strategy :side-loop
+             :side side})))
       ;; Horizontal Layout (LR)
       (let [s-right (+ (:x n1) (:w n1))
             t-left (:x n2)
@@ -109,10 +134,21 @@
           {:p1 {:x s-right :y (+ (:y n1) (/ (:h n1) 2))}
            :p2 {:x t-left :y (+ (:y n2) (/ (:h n2) 2))}
            :strategy :standard}
-           ;; Back-edge: Loop around Top side
-          {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y (:y n1)} ;; Top
-           :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y (:y n2)} ;; Top
-           :strategy :side-loop})))))
+           ;; Back-edge: Loop around Top/Bottom
+           ;; Heuristic: If n1 is below n2, loop Bottom. Else Top.
+          (let [cy1 (+ (:y n1) (/ (:h n1) 2))
+                cy2 (+ (:y n2) (/ (:h n2) 2))
+                side (if (> cy1 cy2) :bottom :top)]
+            {:p1 (if (= side :top)
+                   {:x (+ (:x n1) (/ (:w n1) 2)) :y (:y n1)}
+                   {:x (+ (:x n1) (/ (:w n1) 2)) :y (+ (:y n1) (:h n1))})
+             :p2 (if (= side :top)
+                   {:x (+ (:x n2) (/ (:w n2) 2)) :y (:y n2)}
+                   {:x (+ (:x n2) (/ (:w n2) 2)) :y (+ (:y n2) (:h n2))})
+             :strategy :side-loop
+             :side side}))))))
+
+;; (defn- select-ports ...) removed - duplicate of public select-ports
 
 (defn route-edges [layout options]
   (let [nodes (:nodes layout)
@@ -144,8 +180,8 @@
                                            (let [n1 (get nodes-map (:from e))
                                                  n2 (get nodes-map (:to e))]
                                              (if (and n1 n2)
-                                               (let [{:keys [p1 p2 strategy]} (select-ports n1 n2 mode)]
-                                                 {:e e :p1 p1 :p2 p2 :strategy strategy :valid true})
+                                               (let [{:keys [p1 p2 strategy side]} (select-ports n1 n2 mode)]
+                                                 {:e e :p1 p1 :p2 p2 :strategy strategy :side side :valid true})
                                                {:e e :valid false})))
                                          siblings)
 
@@ -248,20 +284,36 @@
                                     ;; --- 侧边回环路由 (Side Loop Routing) - 用于回退边 ---
                                     side-loop-results
                                     (map (fn [geom]
-                                           (let [{:keys [e p1 p2]} geom
-                                                 channel (find-safe-channel p1 p2 nodes mode)]
+                                           (let [{:keys [e p1 p2 side]} geom
+                                                 channel (find-safe-channel p1 p2 nodes mode side)]
                                              (assoc e :points
                                                     (clean-points
-                                                     (if (not= mode "horizontal") ;; TB -> Left loop
-                                                       [p1
-                                                        {:x channel :y (:y p1)}
-                                                        {:x channel :y (:y p2)}
-                                                        p2]
-                                                            ;; LR -> Top loop
-                                                       [p1
-                                                        {:x (:x p1) :y channel}
-                                                        {:x (:x p2) :y channel}
-                                                        p2])))))
+                                                     (if (not= mode "horizontal") ;; TB
+                                                       ;; TB Layout
+                                                       (if (= side :right)
+                                                          ;; Right Loop
+                                                         [p1
+                                                          {:x channel :y (:y p1)}
+                                                          {:x channel :y (:y p2)}
+                                                          p2]
+                                                          ;; Left Loop (Default)
+                                                         [p1
+                                                          {:x channel :y (:y p1)}
+                                                          {:x channel :y (:y p2)}
+                                                          p2])
+
+                                                       ;; LR Layout
+                                                       (if (= side :bottom)
+                                                          ;; Bottom Loop
+                                                         [p1
+                                                          {:x (:x p1) :y channel}
+                                                          {:x (:x p2) :y channel}
+                                                          p2]
+                                                          ;; Top Loop (Default)
+                                                         [p1
+                                                          {:x (:x p1) :y channel}
+                                                          {:x (:x p2) :y channel}
+                                                          p2]))))))
                                          side-loop-geoms)]
 
                                 (concat waypoint-results standard-results side-loop-results)))
