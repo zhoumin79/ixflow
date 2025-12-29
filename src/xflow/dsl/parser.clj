@@ -57,7 +57,9 @@
       (re-find #"(.+?)\s+((?:-*>)|(?:--))\s+(.+?)(?:\s*:\s*(.*))?$" line)
       (let [[_ from type-str to label] (re-find #"(.+?)\s+((?:-*>)|(?:--))\s+(.+?)(?:\s*:\s*(.*))?$" line)
             type (if (or (str/includes? type-str "--") (= type-str "--")) :dashed :solid)
-            edge {:from (str/trim (str/replace from #"\"" ""))
+            idx (count (:edges context))
+            edge {:id (str "edge-" idx)
+                  :from (str/trim (str/replace from #"\"" ""))
                   :to (str/trim (str/replace to #"\"" ""))
                   :type type
                   :label (some-> label str/trim)}]
@@ -80,7 +82,7 @@
           (do
             (when (not (empty? line))
               (println "Ignored line:" line))
-            context)))))) ;; Fallback/Error
+            context))))))
 
 (defn parse-dsl [dsl-str]
   (let [lines (str/split-lines dsl-str)

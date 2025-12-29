@@ -1,0 +1,15 @@
+{:name "Long Edge Demo"
+ :data {:config {:layout "simple" :direction "tb"}
+        :pool-dsl "
+title Long Edge Demo
+
+start [label: Start]
+step1 [label: Step 1]
+step2 [label: Step 2]
+end [label: End]
+
+start -> step1
+step1 -> step2
+step2 -> end
+start -> end : Skip
+"}}

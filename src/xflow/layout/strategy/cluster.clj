@@ -90,7 +90,9 @@
 
 (defn calculate-cluster-geometries [lanes processed-nodes]
   (keep (fn [l]
-          (let [l-nodes (filter #(= (:swimlane-id %) (:id l)) processed-nodes)]
+          (let [l-nodes (filter #(and (= (:swimlane-id %) (:id l))
+                                      (not (:dummy? %))) ;; Exclude dummy nodes from cluster box
+                                processed-nodes)]
             (if (and (seq l-nodes) (not (empty? (:id l)))) ;; Skip global lane
               (let [min-x (apply min (map :x l-nodes))
                     max-x (apply max (map #(+ (:x %) (:w %)) l-nodes))

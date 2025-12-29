@@ -3,73 +3,37 @@
 
 (defn assign-coordinates [nodes edges options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
-        ;; --- Optimization: Apply Crossing Minimization ---
-        ordered-nodes (sugiyama/order-nodes ranked-nodes edges)
-        rank-groups (group-by :rank ordered-nodes)
-        ;; -------------------------------------------------
-        max-rank (apply max (keys rank-groups))
 
-        direction (:direction options "tb") ;; "tb" or "lr"
-        node-width 180
-        node-height 50
-        x-gap 50
-        y-gap 80
+        ;; --- Phase 3: Dummy Nodes for Long Edges ---
+        ;; Insert dummy nodes to break long edges into segments
+        ;; This ensures long edges are routed correctly through layers
+        dummy-result (sugiyama/insert-dummy-nodes ranked-nodes edges)
+        expanded-nodes (:nodes dummy-result)
+        segment-edges (:edges dummy-result)
 
-        ;; Calculate dimensions for each rank
-        rank-dimensions
-        (reduce
-         (fn [acc r]
-           (let [nodes-in-rank (get rank-groups r)
-                 count (count nodes-in-rank)
-                 ;; Dimension along the rank (width for TB, height for LR)
-                 rank-size (if (= direction "lr")
-                             (+ (* count node-height) (* (dec count) y-gap))
-                             (+ (* count node-width) (* (dec count) x-gap)))]
-             (assoc acc r rank-size)))
-         {}
-         (range (inc max-rank)))
+        ;; --- Optimization: Apply Crossing Minimization (交叉最小化) ---
+        ;; 使用重心法重新排序节点以减少连线交叉 (Uses expanded graph)
+        ordered-nodes (sugiyama/order-nodes expanded-nodes segment-edges)
 
-        max-rank-size (apply max (vals rank-dimensions))
+        ;; --- Optimization: Apply Advanced Coordinate Assignment (坐标分配) ---
+        ;; 使用中位数启发式算法垂直对齐长连线，提高美观度 (Uses expanded graph)
+        processed-all-nodes (sugiyama/assign-coordinates ordered-nodes segment-edges options)
 
-        processed-nodes
-        (mapcat
-         (fn [r]
-           (let [nodes-in-rank (sort-by :order (get rank-groups r)) ;; Ensure sorting by optimized order
-                 rank-size (get rank-dimensions r)
-                 start-offset (/ (- max-rank-size rank-size) 2)]
+        ;; --- Restoration ---
+        ;; Filter out dummy nodes and apply their positions as waypoints to original edges
+        final-nodes (remove :dummy? processed-all-nodes)
+        final-edges (sugiyama/apply-edge-points edges processed-all-nodes)
 
-             (map-indexed
-              (fn [idx node]
-                (if (= direction "lr")
-                  ;; Left-to-Right
-                  (let [x (* r (+ node-width x-gap))
-                        y (+ start-offset (* idx (+ node-height y-gap)))]
-                    (assoc node
-                           :x x
-                           :y y
-                           :w node-width
-                           :h node-height))
-                  ;; Top-to-Bottom (default)
-                  (let [x (+ start-offset (* idx (+ node-width x-gap)))
-                        y (* r (+ node-height y-gap))]
-                    (assoc node
-                           :x x
-                           :y y
-                           :w node-width
-                           :h node-height))))
-              nodes-in-rank)))
-         (range (inc max-rank)))
+        ;; Calculate total graph dimensions based on processed nodes
+        width (if (seq final-nodes)
+                (+ (apply max (map #(+ (:x %) (:w %)) final-nodes)) 50)
+                0)
+        height (if (seq final-nodes)
+                 (+ (apply max (map #(+ (:y %) (:h %)) final-nodes)) 50)
+                 0)]
 
-        ;; Calculate total graph dimensions
-        total-width (if (= direction "lr")
-                      (+ (* (inc max-rank) node-width) (* max-rank x-gap))
-                      max-rank-size)
-        total-height (if (= direction "lr")
-                       max-rank-size
-                       (+ (* (inc max-rank) node-height) (* max-rank y-gap)))]
-
-    {:nodes processed-nodes
-     :edges edges
-     :width total-width
-     :height total-height
+    {:nodes final-nodes
+     :edges final-edges
+     :width width
+     :height height
      :swimlanes []})) ;; No swimlanes for simple layout
