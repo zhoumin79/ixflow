@@ -21,39 +21,32 @@
                (and (<= x1 nx) (>= x2 (+ nx nw))))))))
 
 (defn- find-safe-mid [p1 p2 nodes mode]
-  ;; Finds a mid-x (or mid-y) that doesn't intersect any node
-  ;; p1, p2 are endpoints of the edge
-  ;; We are looking for a vertical segment at mid-x (in horizontal mode)
-  ;; or horizontal segment at mid-y (in vertical mode)
-
   (let [lr? (= mode "horizontal")
-
-        ;; Initial guess: Average
         start-mid (if lr? (/ (+ (:x p1) (:x p2)) 2) (/ (+ (:y p1) (:y p2)) 2))
-
-        ;; Define the segment we are trying to place
-        ;; If LR: Vertical segment from min-y to max-y at x=mid
         seg-min (if lr? (min (:y p1) (:y p2)) (min (:x p1) (:x p2)))
         seg-max (if lr? (max (:y p1) (:y p2)) (max (:x p1) (:x p2)))
-
-        ;; Function to check collision for a given mid value
         check (fn [mid]
                 (let [segment (if lr?
                                 {:x1 mid :x2 mid :y1 seg-min :y2 seg-max}
                                 {:x1 seg-min :x2 seg-max :y1 mid :y2 mid})]
                   (some #(intersects-node? segment %) nodes)))]
-
     (if (not (check start-mid))
       start-mid
-      ;; Collision! Search outwards
       (loop [offset 20]
-        (if (> offset 200) ;; Give up
-          start-mid
+        (if (> offset 200)
+          (do
+            (when (and (= seg-min 20.0) (= seg-max 275.0))
+              (println "DEBUG: find-safe-mid gave up for" p1 p2 "start-mid" start-mid))
+            start-mid)
           (let [try-pos (+ start-mid offset)
                 try-neg (- start-mid offset)]
             (cond
               (not (check try-pos)) try-pos
-              (not (check try-neg)) try-neg
+              (not (check try-neg))
+              (do
+                (when (and (= seg-min 20.0) (= seg-max 275.0))
+                  (println "DEBUG: find-safe-mid FOUND" try-neg))
+                try-neg)
               :else (recur (+ offset 20)))))))))
 
 (defn- find-safe-channel [p1 p2 nodes mode side]
@@ -99,56 +92,195 @@
             try-pos
             (recur (+ offset 20))))))))
 
+(defn- path-valid? [points nodes]
+  (every? (fn [[p1 p2]]
+            (let [segment {:x1 (:x p1) :y1 (:y p1) :x2 (:x p2) :y2 (:y p2)}
+                  ;; Helper to check if a point is inside a node (including padding)
+                  point-in-node? (fn [p n]
+                                   (intersects-node? {:x1 (:x p) :y1 (:y p) :x2 (:x p) :y2 (:y p)} n))
+
+                  ;; Filter out nodes that contain the start or end point of the segment.
+                  ;; This is crucial because a segment naturally touches the node it connects to,
+                  ;; but this shouldn't count as a "collision" that invalidates the path.
+                  ;; 过滤掉包含线段起点或终点的节点。这是因为线段自然会连接到节点，
+                  ;; 但这不应被视为导致路径无效的“碰撞”。
+                  relevant-nodes (remove (fn [n]
+                                           (or (point-in-node? p1 n)
+                                               (point-in-node? p2 n)))
+                                         nodes)]
+              (not-any? #(intersects-node? segment %) relevant-nodes)))
+          (partition 2 1 points)))
+
+(defn- route-segment [p1 p2 nodes mode]
+  (let [vertical? (not= mode "horizontal")
+        ;; Try 1: Standard Mid
+        mid-std (if vertical? (/ (+ (:y p1) (:y p2)) 2) (/ (+ (:x p1) (:x p2)) 2))
+        pts-std (if vertical?
+                  [p1 {:x (:x p1) :y mid-std} {:x (:x p2) :y mid-std} p2]
+                  [p1 {:x mid-std :y (:y p1)} {:x mid-std :y (:y p2)} p2])
+        valid-std? (path-valid? pts-std nodes)
+
+        ;; Try 2: Safe Mid (Search)
+        mid-safe (find-safe-mid p1 p2 nodes mode)
+        pts-safe (if vertical?
+                   [p1 {:x (:x p1) :y mid-safe} {:x (:x p2) :y mid-safe} p2]
+                   [p1 {:x mid-safe :y (:y p1)} {:x mid-safe :y (:y p2)} p2])
+        valid-safe? (path-valid? pts-safe nodes)
+
+        ;; Try 3: Side Loop
+        side (if vertical?
+               (if (< (:x p1) (:x p2)) :left :right)
+               (if (< (:y p1) (:y p2)) :top :bottom))
+        channel (find-safe-channel p1 p2 nodes mode side)
+        pts-loop (if vertical?
+                   (if (= side :right)
+                     [p1 {:x channel :y (:y p1)} {:x channel :y (:y p2)} p2]
+                     [p1 {:x channel :y (:y p1)} {:x channel :y (:y p2)} p2])
+                   (if (= side :bottom)
+                     [p1 {:x (:x p1) :y channel} {:x (:x p2) :y channel} p2]
+                     [p1 {:x (:x p1) :y channel} {:x (:x p2) :y channel} p2]))]
+
+    (cond
+      valid-std? pts-std
+      valid-safe? pts-safe
+      :else pts-loop)))
+
 (defn select-ports [n1 n2 mode]
   (let [vertical? (not= mode "horizontal")
-        margin 20]
-    (if vertical?
-      ;; Vertical Layout (TB)
-      (let [s-bottom (+ (:y n1) (:h n1))
-            t-top (:y n2)
-            ;; If target is comfortably below source, use standard Bottom->Top
-            enough-space? (> t-top (+ s-bottom margin))]
-        (if enough-space?
-          {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-bottom}
-           :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-top}
-           :strategy :standard}
-          ;; Back-edge or side-by-side: Loop around Side
-          ;; Heuristic: If n1 is to the right of n2, loop Right. Else Left.
-          (let [cx1 (+ (:x n1) (/ (:w n1) 2))
-                cx2 (+ (:x n2) (/ (:w n2) 2))
-                side (if (> cx1 cx2) :right :left)]
-            {:p1 (if (= side :left)
-                   {:x (:x n1) :y (+ (:y n1) (/ (:h n1) 2))}
-                   {:x (+ (:x n1) (:w n1)) :y (+ (:y n1) (/ (:h n1) 2))})
-             :p2 (if (= side :left)
-                   {:x (:x n2) :y (+ (:y n2) (/ (:h n2) 2))}
-                   {:x (+ (:x n2) (:w n2)) :y (+ (:y n2) (/ (:h n2) 2))})
-             :strategy :side-loop
-             :side side})))
-      ;; Horizontal Layout (LR)
-      (let [s-right (+ (:x n1) (:w n1))
-            t-left (:x n2)
-            ;; If target is comfortably to right of source, use standard Right->Left
-            enough-space? (> t-left (+ s-right margin))]
-        (if enough-space?
-          {:p1 {:x s-right :y (+ (:y n1) (/ (:h n1) 2))}
-           :p2 {:x t-left :y (+ (:y n2) (/ (:h n2) 2))}
-           :strategy :standard}
-           ;; Back-edge: Loop around Top/Bottom
-           ;; Heuristic: If n1 is below n2, loop Bottom. Else Top.
-          (let [cy1 (+ (:y n1) (/ (:h n1) 2))
-                cy2 (+ (:y n2) (/ (:h n2) 2))
-                side (if (> cy1 cy2) :bottom :top)]
-            {:p1 (if (= side :top)
-                   {:x (+ (:x n1) (/ (:w n1) 2)) :y (:y n1)}
-                   {:x (+ (:x n1) (/ (:w n1) 2)) :y (+ (:y n1) (:h n1))})
-             :p2 (if (= side :top)
-                   {:x (+ (:x n2) (/ (:w n2) 2)) :y (:y n2)}
-                   {:x (+ (:x n2) (/ (:w n2) 2)) :y (+ (:y n2) (:h n2))})
-             :strategy :side-loop
-             :side side}))))))
+        margin 20
+        res (if vertical?
+              ;; Vertical Layout (TB)
+              (let [s-bottom (+ (:y n1) (:h n1))
+                    t-top (:y n2)
+                    ;; Standard: Target is below Source
+                    enough-vertical? (> t-top (+ s-bottom margin))]
+                (if enough-vertical?
+                  {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-bottom}
+                   :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-top}
+                   :strategy :standard}
 
-;; (defn- select-ports ...) removed - duplicate of public select-ports
+                  ;; Not enough vertical space. Check Horizontal space (Side-by-Side).
+                  (let [s-right (+ (:x n1) (:w n1))
+                        t-left (:x n2)
+                        s-left (:x n1)
+                        t-right (+ (:x n2) (:w n2))]
+                    (cond
+                      ;; Target is to the Right
+                      (> t-left (+ s-right margin))
+                      {:p1 {:x s-right :y (+ (:y n1) (/ (:h n1) 2))}
+                       :p2 {:x t-left :y (+ (:y n2) (/ (:h n2) 2))}
+                       :strategy :direct-horizontal} ;; New strategy for cross-routing
+
+                      ;; Target is to the Left
+                      (> s-left (+ t-right margin))
+                      {:p1 {:x s-left :y (+ (:y n1) (/ (:h n1) 2))}
+                       :p2 {:x t-right :y (+ (:y n2) (/ (:h n2) 2))}
+                       :strategy :direct-horizontal}
+
+                      ;; Overlap or Back-edge -> Side Loop
+                      :else
+                      (let [cx1 (+ (:x n1) (/ (:w n1) 2))
+                            cx2 (+ (:x n2) (/ (:w n2) 2))
+                            side (if (> cx1 cx2) :right :left)]
+                        {:p1 (if (= side :left)
+                               {:x (:x n1) :y (+ (:y n1) (/ (:h n1) 2))}
+                               {:x (+ (:x n1) (:w n1)) :y (+ (:y n1) (/ (:h n1) 2))})
+                         :p2 (if (= side :left)
+                               {:x (:x n2) :y (+ (:y n2) (/ (:h n2) 2))}
+                               {:x (+ (:x n2) (:w n2)) :y (+ (:y n2) (/ (:h n2) 2))})
+                         :strategy :side-loop
+                         :side side})))))
+
+              ;; Horizontal Layout (LR)
+              (let [s-right (+ (:x n1) (:w n1))
+                    t-left (:x n2)
+                    ;; Standard: Target is to the Right of Source
+                    enough-horizontal? (> t-left (+ s-right margin))]
+                (if enough-horizontal?
+                  {:p1 {:x s-right :y (+ (:y n1) (/ (:h n1) 2))}
+                   :p2 {:x t-left :y (+ (:y n2) (/ (:h n2) 2))}
+                   :strategy :standard}
+
+                  ;; Not enough horizontal space. Check Vertical space.
+                  (let [s-bottom (+ (:y n1) (:h n1))
+                        t-top (:y n2)
+                        s-top (:y n1)
+                        t-bottom (+ (:y n2) (:h n2))]
+                    (cond
+                      ;; Target is Below
+                      (> t-top (+ s-bottom margin))
+                      {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-bottom}
+                       :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-top}
+                       :strategy :direct-vertical} ;; New strategy
+
+                      ;; Target is Above
+                      (> s-top (+ t-bottom margin))
+                      {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-top}
+                       :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-bottom}
+                       :strategy :direct-vertical}
+
+                      ;; Overlap or Back-edge -> Side Loop
+                      :else
+                      (let [cy1 (+ (:y n1) (/ (:h n1) 2))
+                            cy2 (+ (:y n2) (/ (:h n2) 2))
+                            side (if (> cy1 cy2) :bottom :top)]
+                        {:p1 (if (= side :top)
+                               {:x (+ (:x n1) (/ (:w n1) 2)) :y (:y n1)}
+                               {:x (+ (:x n1) (/ (:w n1) 2)) :y (+ (:y n1) (:h n1))})
+                         :p2 (if (= side :top)
+                               {:x (+ (:x n2) (/ (:w n2) 2)) :y (:y n2)}
+                               {:x (+ (:x n2) (/ (:w n2) 2)) :y (+ (:y n2) (:h n2))})
+                         :strategy :side-loop
+                         :side side}))))))]
+    res))
+
+(defn- collinear? [p1 p2 p3]
+  (let [x1 (:x p1) y1 (:y p1)
+        x2 (:x p2) y2 (:y p2)
+        x3 (:x p3) y3 (:y p3)]
+    ;; Check if slopes are equal: (y2-y1)/(x2-x1) == (y3-y2)/(x3-x2)
+    ;; Use cross product to avoid division by zero: (y2-y1)*(x3-x2) == (y3-y2)*(x2-x1)
+    (< (Math/abs (- (* (- y2 y1) (- x3 x2))
+                    (* (- y3 y2) (- x2 x1))))
+       0.001)))
+
+(defn- simplify-path [points]
+  (if (< (count points) 3)
+    points
+    (loop [pts points
+           result [(first points)]]
+      (if (empty? (rest (rest pts)))
+        (conj result (second pts))
+        (let [p1 (last result)
+              p2 (first (rest pts))
+              p3 (second (rest pts))]
+          (if (collinear? p1 p2 p3)
+            ;; Skip p2, continue with p1, p3, ...
+            (recur (rest pts) result)
+            ;; Keep p2
+            (recur (rest pts) (conj result p2))))))))
+
+(defn- to-double [p]
+  (when (or (nil? (:x p)) (nil? (:y p)))
+    (println "ERROR: Nil coord in point:" p))
+  {:x (double (:x p)) :y (double (:y p))})
+
+(defn- clean-points [pts]
+  (->> pts
+       (map to-double)
+       dedupe
+       vec
+       simplify-path))
+
+(defn- simple-path? [points mode]
+  (if (< (count points) 3)
+    true
+    (let [vertical? (not= mode "horizontal")
+          m1 (second points)
+          m2 (nth points 2)]
+      (if vertical?
+        (= (:y m1) (:y m2)) ;; Horizontal middle segment in Vertical mode
+        (= (:x m1) (:x m2)))))) ;; Vertical middle segment in Horizontal mode
 
 (defn route-edges [layout options]
   (let [nodes (:nodes layout)
@@ -187,54 +319,35 @@
 
                                     valid-geoms (filter :valid edge-geoms)
 
-                                    ;; --- 辅助函数：坐标转浮点数 (避免 SVG 渲染问题) ---
-                                    to-double (fn [p]
-                                                (when (or (nil? (:x p)) (nil? (:y p)))
-                                                  (println "ERROR: Nil coord in point:" p))
-                                                {:x (double (:x p)) :y (double (:y p))})
-
-                                    ;; --- 辅助函数：清理点 (转浮点 + 去重) ---
-                                    ;; 修复问题：如果相邻点相同（如直线连线），会导致 SVG 圆角计算出现 NaN
-                                    clean-points (fn [pts]
-                                                   (into [] (dedupe (map to-double pts))))
-
                                     ;; --- 路径点路由 (处理 Dummy Nodes 产生的长连线) ---
                                     waypoint-results
                                     (keep (fn [geom]
                                             (let [{:keys [e p1 p2]} geom]
                                               (when (seq (:points e))
                                                 (let [waypoints (:points e)
-                                                      ;; 完整路径: 起点 -> 中间点(Dummy Nodes) -> 终点
-                                                      full-path (concat [p1] waypoints [p2])
+                                                      ;; Try direct routing first to see if we can avoid zigzag
+                                                      direct-path (route-segment p1 p2 nodes mode)
+                                                      is-simple (simple-path? direct-path mode)]
 
-                                                      ;; 正交连接所有点
-                                                      final-points
-                                                      (loop [pts full-path
-                                                             result []]
-                                                        (if (< (count pts) 2)
-                                                          result
-                                                          (let [curr (first pts)
-                                                                next (second pts)
-                                                                ;; 正交连接逻辑 (Orthogonal Connection)
-                                                                ;; TB模式 (Vertical): (x1,y1) -> (x1,mid) -> (x2,mid) -> (x2,y2)
-                                                                ;; LR模式 (Horizontal): (x1,y1) -> (mid,y1) -> (mid,y2) -> (x2,y2)
-                                                                segment-pts
-                                                                (if (= mode "horizontal")
-                                                                  (let [mid (/ (+ (:x curr) (:x next)) 2)]
-                                                                    [curr
-                                                                     {:x mid :y (:y curr)}
-                                                                     {:x mid :y (:y next)}
-                                                                     next])
-                                                                  (let [mid (/ (+ (:y curr) (:y next)) 2)]
-                                                                    [curr
-                                                                     {:x (:x curr) :y mid}
-                                                                     {:x (:x next) :y mid}
-                                                                     next]))]
-                                                            (recur (rest pts)
-                                                                   (into result (if (empty? result)
-                                                                                  segment-pts
-                                                                                  (rest segment-pts)))))))] ;; 避免重复起点
-                                                  (assoc e :points (clean-points final-points))))))
+                                                  (if is-simple
+                                                    ;; If direct path is simple (Standard/Safe Mid), prefer it over waypoints
+                                                    (assoc e :points (clean-points direct-path))
+
+                                                    ;; Fallback to waypoints if direct path is complex (Side Loop)
+                                                    (let [full-path (concat [p1] waypoints [p2])
+                                                          final-points
+                                                          (loop [pts full-path
+                                                                 result []]
+                                                            (if (< (count pts) 2)
+                                                              result
+                                                              (let [curr (first pts)
+                                                                    next (second pts)
+                                                                    segment-pts (route-segment curr next nodes mode)]
+                                                                (recur (rest pts)
+                                                                       (into result (if (empty? result)
+                                                                                      segment-pts
+                                                                                      (rest segment-pts)))))))]
+                                                      (assoc e :points (clean-points final-points))))))))
                                           valid-geoms)
 
                                     ;; 过滤掉已通过 Waypoint 路由的边
@@ -242,44 +355,48 @@
 
                                     ;; --- 标准路由 (无中间点) ---
                                     standard-geoms (filter #(= (:strategy %) :standard) remaining-geoms)
+                                    direct-horiz-geoms (filter #(= (:strategy %) :direct-horizontal) remaining-geoms)
+                                    direct-vert-geoms (filter #(= (:strategy %) :direct-vertical) remaining-geoms)
                                     side-loop-geoms (filter #(= (:strategy %) :side-loop) remaining-geoms)
 
-                                    ;; --- 标准曼哈顿路由逻辑 (Standard Manhattan Routing) ---
-                                    standard-results
-                                    (if (seq standard-geoms)
-                                      (let [mid-xs (map #(/ (+ (:x (:p1 %)) (:x (:p2 %))) 2) standard-geoms)
-                                            mid-ys (map #(/ (+ (:y (:p1 %)) (:y (:p2 %))) 2) standard-geoms)
-                                            avg-mid-x (/ (reduce + mid-xs) (count mid-xs))
-                                            avg-mid-y (/ (reduce + mid-ys) (count mid-ys))
+                                    ;; --- Helper for Standard Routing ---
+                                    route-standard (fn [geoms routing-mode]
+                                                     (if (seq geoms)
+                                                       (let [mid-xs (map #(/ (+ (:x (:p1 %)) (:x (:p2 %))) 2) geoms)
+                                                             mid-ys (map #(/ (+ (:y (:p1 %)) (:y (:p2 %))) 2) geoms)
+                                                             avg-mid-x (/ (reduce + mid-xs) (count mid-xs))
+                                                             avg-mid-y (/ (reduce + mid-ys) (count mid-ys))
 
-                                            ;; 计算连线束范围 (Bundle Extent)
-                                            bundle-min (if (= mode "horizontal")
-                                                         (apply min (map #(min (:y (:p1 %)) (:y (:p2 %))) standard-geoms))
-                                                         (apply min (map #(min (:x (:p1 %)) (:x (:p2 %))) standard-geoms)))
-                                            bundle-max (if (= mode "horizontal")
-                                                         (apply max (map #(max (:y (:p1 %)) (:y (:p2 %))) standard-geoms))
-                                                         (apply max (map #(max (:x (:p1 %)) (:x (:p2 %))) standard-geoms)))
+                                                             bundle-min (if (= routing-mode "horizontal")
+                                                                          (apply min (map #(min (:y (:p1 %)) (:y (:p2 %))) geoms))
+                                                                          (apply min (map #(min (:x (:p1 %)) (:x (:p2 %))) geoms)))
+                                                             bundle-max (if (= routing-mode "horizontal")
+                                                                          (apply max (map #(max (:y (:p1 %)) (:y (:p2 %))) geoms))
+                                                                          (apply max (map #(max (:x (:p1 %)) (:x (:p2 %))) geoms)))
 
-                                            ;; 寻找无障碍中间线 (Safe Mid Line)
-                                            safe-mid (if (= mode "horizontal")
-                                                       (find-safe-mid {:x avg-mid-x :y bundle-min} {:x avg-mid-x :y bundle-max} nodes mode)
-                                                       (find-safe-mid {:x bundle-min :y avg-mid-y} {:x bundle-max :y avg-mid-y} nodes mode))]
+                                                             safe-mid (if (= routing-mode "horizontal")
+                                                                        (find-safe-mid {:x avg-mid-x :y bundle-min} {:x avg-mid-x :y bundle-max} nodes routing-mode)
+                                                                        (find-safe-mid {:x bundle-min :y avg-mid-y} {:x bundle-max :y avg-mid-y} nodes routing-mode))]
 
-                                        (map (fn [geom]
-                                               (let [{:keys [e p1 p2]} geom]
-                                                 (assoc e :points
-                                                        (clean-points
-                                                         (if (= mode "horizontal")
-                                                           [p1
-                                                            {:x safe-mid :y (:y p1)}
-                                                            {:x safe-mid :y (:y p2)}
-                                                            p2]
-                                                           [p1
-                                                            {:x (:x p1) :y safe-mid}
-                                                            {:x (:x p2) :y safe-mid}
-                                                            p2])))))
-                                             standard-geoms))
-                                      [])
+                                                         (map (fn [geom]
+                                                                (let [{:keys [e p1 p2]} geom]
+                                                                  (assoc e :points
+                                                                         (clean-points
+                                                                          (if (= routing-mode "horizontal")
+                                                                            [p1
+                                                                             {:x safe-mid :y (:y p1)}
+                                                                             {:x safe-mid :y (:y p2)}
+                                                                             p2]
+                                                                            [p1
+                                                                             {:x (:x p1) :y safe-mid}
+                                                                             {:x (:x p2) :y safe-mid}
+                                                                             p2])))))
+                                                              geoms))
+                                                       []))
+
+                                    standard-results (route-standard standard-geoms mode)
+                                    direct-horiz-results (route-standard direct-horiz-geoms "horizontal")
+                                    direct-vert-results (route-standard direct-vert-geoms "vertical")
 
                                     ;; --- 侧边回环路由 (Side Loop Routing) - 用于回退边 ---
                                     side-loop-results
@@ -316,6 +433,5 @@
                                                           p2]))))))
                                          side-loop-geoms)]
 
-                                (concat waypoint-results standard-results side-loop-results)))
+                                (concat waypoint-results standard-results direct-horiz-results direct-vert-results side-loop-results)))
                             edges-by-from))))))
-

@@ -1,6 +1,13 @@
 (ns xflow.painter.svg
-  (:require [clojure.string :as str]
-            [hiccup.util :as h-util]))
+  (:require [clojure.string :as str]))
+
+(defn escape-html [s]
+  (when s
+    (-> s
+        (str/replace "&" "&amp;")
+        (str/replace "<" "&lt;")
+        (str/replace ">" "&gt;")
+        (str/replace "\"" "&quot;"))))
 
 (def icon-map
   {"file-text" "📝"
@@ -170,7 +177,7 @@
 
      ;; Title
      (when title
-       [:text {:x (/ width 2) :y 30 :text-anchor "middle" :font-size 20 :font-weight "bold" :fill "#333"} (h-util/escape-html title)])
+       [:text {:x (/ width 2) :y 30 :text-anchor "middle" :font-size 20 :font-weight "bold" :fill "#333"} (escape-html title)])
 
      [:g {:transform (if title "translate(0, 50)" "translate(0, 0)")}
       ;; Draw Swimlanes (Backgrounds) or Clusters
@@ -185,7 +192,7 @@
                      :rx 10 :ry 10}]
              ;; Cluster Label (top-left inside box)
              [:rect {:x (:x lane) :y (:y lane) :width 100 :height 25 :rx 5 :ry 5 :fill "white" :stroke "#dee2e6"}]
-             [:text {:x (+ (:x lane) 10) :y (+ (:y lane) 17) :font-weight "bold" :fill "#495057" :font-size 12} (h-util/escape-html (:label lane))]]))
+             [:text {:x (+ (:x lane) 10) :y (+ (:y lane) 17) :font-weight "bold" :fill "#495057" :font-size 12} (escape-html (:label lane))]]))
 
         ;; Draw Standard Swimlanes
         (for [lane swimlanes]
@@ -200,11 +207,11 @@
                [:rect {:x (:x lane) :y (:y lane) :width 30 :height (:h lane) :fill header-color :stroke "#dee2e6"}])
              ;; Label
              (if (:vertical? lane)
-               [:text {:x (+ (:x lane) (/ (:w lane) 2)) :y (+ (:y lane) 20) :text-anchor "middle" :font-weight "bold" :fill "#495057"} (h-util/escape-html (:label lane))]
+               [:text {:x (+ (:x lane) (/ (:w lane) 2)) :y (+ (:y lane) 20) :text-anchor "middle" :font-weight "bold" :fill "#495057"} (escape-html (:label lane))]
                [:text {:x (+ (:x lane) 15) :y (+ (:y lane) (/ (:h lane) 2))
                        :text-anchor "middle" :dominant-baseline "middle"
                        :transform (str "rotate(-90, " (+ (:x lane) 15) ", " (+ (:y lane) (/ (:h lane) 2)) ")")
-                       :font-weight "bold" :fill "#495057"} (h-util/escape-html (:label lane))])])))
+                       :font-weight "bold" :fill "#495057"} (escape-html (:label lane))])])))
 
       ;; Draw Edges
       (for [e edges]
@@ -224,7 +231,7 @@
                  (let [pos (calculate-label-pos points)]
                    [:g
                     [:rect {:x (- (:x pos) 20) :y (- (:y pos) 10) :width 40 :height 20 :fill "white" :opacity 0.9 :rx 3}]
-                    [:text {:x (:x pos) :y (:y pos) :fill "#333" :font-size 11 :text-anchor "middle" :dominant-baseline "middle"} (h-util/escape-html (strip-quotes (:label e)))]]))]))))
+                    [:text {:x (:x pos) :y (:y pos) :fill "#333" :font-size 11 :text-anchor "middle" :dominant-baseline "middle"} (escape-html (strip-quotes (:label e)))]]))]))))
 
       ;; Draw Nodes
       (for [n nodes]
@@ -249,7 +256,7 @@
 
              ;; Node Label
              [:text {:x cx :y cy :text-anchor "middle" :dominant-baseline "middle" :font-size 12 :font-weight "bold" :fill "#222"}
-              (h-util/escape-html (strip-quotes (or (-> n :props :label) (:id n))))]
+              (escape-html (strip-quotes (or (-> n :props :label) (:id n))))]
 
              ;; Icon Badge
              (when icon-char
