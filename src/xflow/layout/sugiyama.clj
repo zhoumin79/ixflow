@@ -9,17 +9,21 @@
   ;; Simple Longest Path layering
   (let [node-map (group-by :id nodes)
         adj (reduce (fn [m e] (update m (:from e) (fnil conj []) (:to e))) {} edges)
-        ranks (atom {})]
+        ranks (atom {})
+        visited-global (atom #{})]
 
     (letfn [(visit [node-id depth visited]
-              (when-not (contains? visited node-id) ;; Cycle detection
+              (when-not (contains? visited node-id) ;; Cycle detection within path
                 (swap! ranks update node-id #(max (or % 0) depth))
+                (swap! visited-global conj node-id)
                 (doseq [child (get adj node-id)]
                   (visit child (inc depth) (conj visited node-id)))))]
 
       (let [roots (get-roots nodes edges)]
         (doseq [root (if (seq roots) roots nodes)] ;; If no roots (cycle), start anywhere
-          (visit (:id root) 0 #{}))))
+          ;; Only process if not already visited (avoids infinite rank increment in cycles)
+          (when-not (contains? @visited-global (:id root))
+            (visit (:id root) 0 #{})))))
 
     ;; Assign rank to node objects
     (map (fn [n] (assoc n :rank (get @ranks (:id n) 0))) nodes)))
@@ -154,13 +158,7 @@
         real-nodes (remove :dummy? nodes)
 
         ;; Map of dummy-id -> coordinates
-        dummy-coords (into {} (map (fn [n] [(:id n) {:x (:x n) :y (:y n)}]) (filter :dummy? nodes)))
-
-        ;; Reconstruct edges
-        ;; Edges passed here are the SEGMENTS. We need the ORIGINAL edges.
-        ;; Wait, the caller (simple.clj) has the original edges.
-        ;; We just need to attach points to the original edges using dummy-coords.
-        ]
+        dummy-coords (into {} (map (fn [n] [(:id n) {:x (:x n) :y (:y n)}]) (filter :dummy? nodes)))]
     {:nodes real-nodes
      :dummy-coords dummy-coords}))
 
@@ -177,18 +175,19 @@
          original-edges)))
 
 (defn assign-coordinates [ordered-nodes edges options]
-  (let [direction (:direction options "tb")
-        vertical? (or (nil? direction) (= direction "tb"))
+  (let [direction (name (:direction options "tb")) ;; Ensure string
+        vertical? (contains? #{"tb" "bt" "vertical"} direction) ;; Support bt/vertical
+        reverse-rank? (= direction "bt")
+        reverse-align? (= direction "rl")
 
         ;; Config
-        node-w 180
-        node-h 50
+        default-w 180
+        default-h 50
         gap-x 50
         gap-y 80
 
         ;; Dimensions based on direction
-        w (if vertical? node-w node-h)
-        h (if vertical? node-h node-w)
+        ;; Note: We can't use fixed w/h anymore if nodes vary in size
         sep-in-rank (if vertical? gap-x gap-y)
         sep-across-rank (if vertical? gap-y gap-x)
 
@@ -196,83 +195,36 @@
         ranks (group-by :rank ordered-nodes)
         max-rank (if (seq ranks) (apply max (keys ranks)) 0)
 
-        coords (atom {})]
+        nodes-map (into {} (map (fn [n] [(:id n) n]) ordered-nodes))
+
+        coords (atom {})]))
 
     ;; 1. Place Rank 0 (Roots)
-    (let [rank0 (sort-by :order (get ranks 0))]
-      (loop [nodes rank0
-             pos 0]
-        (when (seq nodes)
-          (let [n (first nodes)
-                curr-w (if (:dummy? n) 0 w)]
-            (swap! coords assoc (:id n) pos)
-            (recur (rest nodes) (+ pos curr-w sep-in-rank))))))
 
-    ;; 2. Forward Sweep (Rank 1 -> Max)
-    (doseq [r (range 1 (inc max-rank))]
-      (let [layer (sort-by :order (get ranks r))
-            parents-map (group-by :to (filter (fn [e] (some #(= (:id %) (:from e)) (get ranks (dec r)))) edges))]
+(defn layout-graph [nodes edges options]
+  (let [ranked-nodes (assign-ranks nodes edges)
+        {:keys [nodes dummies] :as graph-with-dummies} (insert-dummy-nodes ranked-nodes edges)
 
-        ;; Determine ideal positions
-        (let [placements
-              (map (fn [n]
-                     (let [parents (get parents-map (:id n))
-                           parent-coords (keep #(get @coords (:from %)) parents)
-                           ideal (if (seq parent-coords)
-                                   (/ (reduce + parent-coords) (count parent-coords))
-                                   nil)]
-                       {:node n :ideal ideal}))
-                   layer)]
+        ;; Use standard ordering
+        ;; FIX: Use nodes from graph-with-dummies which includes dummy nodes!
+        ordered-nodes (order-nodes (:nodes graph-with-dummies) (:edges graph-with-dummies))
 
-          ;; Resolve overlaps and place
-          (let [placed-items
-                (loop [items placements
-                       last-pos nil
-                       last-w nil
-                       results []]
-                  (if (seq items)
-                    (let [{:keys [node ideal]} (first items)
-                          curr-w (if (:dummy? node) 0 w)
-                          min-pos (if last-pos (+ last-pos last-w sep-in-rank) 0)
-                          pos (if ideal (max min-pos ideal) min-pos)]
-                      (recur (rest items) pos curr-w (conj results {:node node :pos pos})))
-                    results))]
+        ;; Assign coordinates
+        nodes-with-coords (assign-coordinates ordered-nodes (:edges graph-with-dummies) options)
 
-            ;; Center Alignment Optimization
-            (let [current-center (if (seq placed-items)
-                                   (/ (reduce + (map :pos placed-items)) (count placed-items))
-                                   0)
-                  nodes-with-parents (filter #(get parents-map (:id (:node %))) placed-items)
-                  parent-centers (mapcat (fn [item]
-                                           (let [parents (get parents-map (:id (:node item)))]
-                                             (keep #(get @coords (:from %)) parents)))
-                                         nodes-with-parents)
-                  avg-parent-center (if (seq parent-centers)
-                                      (/ (reduce + parent-centers) (count parent-centers))
-                                      current-center)
+        ;; Apply edge points
+        edges-with-points (apply-edge-points edges nodes-with-coords)
 
-                  shift (- avg-parent-center current-center)]
+        ;; Filter real nodes
+        final-nodes (remove :dummy? nodes-with-coords)
 
-              (doseq [{:keys [node pos]} placed-items]
-                (swap! coords assoc (:id node) (+ pos shift))))))))
+        ;; Calculate dimensions
+        min-x (if (seq final-nodes) (apply min (map :x final-nodes)) 0)
+        min-y (if (seq final-nodes) (apply min (map :y final-nodes)) 0)
+        max-x (if (seq final-nodes) (apply max (map #(+ (:x %) (:w %)) final-nodes)) 0)
+        max-y (if (seq final-nodes) (apply max (map #(+ (:y %) (:h %)) final-nodes)) 0)]
 
-    ;; 3. Return updated nodes with X/Y
-    (let [final-nodes
-          (map (fn [n]
-                 (let [c (get @coords (:id n) 0)
-                       rank-pos (* (:rank n) (+ h sep-across-rank))
-                       nw (if (:dummy? n) 0 node-w)
-                       nh (if (:dummy? n) 0 node-h)]
-                   (if vertical?
-                     (assoc n :x c :y rank-pos :w nw :h nh)
-                     (assoc n :x rank-pos :y c :w nw :h nh))))
-               ordered-nodes)
-
-          min-x (if (seq final-nodes) (apply min (map :x final-nodes)) 0)
-          min-y (if (seq final-nodes) (apply min (map :y final-nodes)) 0)]
-
-      (map (fn [n]
-             (assoc n
-                    :x (- (:x n) min-x)
-                    :y (- (:y n) min-y)))
-           final-nodes))))
+    {:nodes final-nodes
+     :edges edges-with-points
+     :width (- max-x min-x)
+     :height (- max-y min-y)}))

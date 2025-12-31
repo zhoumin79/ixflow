@@ -36,10 +36,10 @@
           context))
 
       ;; Pool Start: Name [props] {
-      ;; FIX: Non-greedy match for name to allow props capturing
       (re-matches #"(?i)^\"?([^\"]+?)\"?\s*(?:\[(.*)\])?\s*\{$" line)
       (let [[_ name props-str] (re-matches #"(?i)^\"?([^\"]+?)\"?\s*(?:\[(.*)\])?\s*\{$" line)
-            pool {:name name
+            pool {:id name ;; FIX: Add ID to match node structure
+                  :name name
                   :props (parse-props props-str)
                   :nodes []
                   :type :pool}]
@@ -60,16 +60,23 @@
                 stack (conj stack parent)]
             (assoc context :stack stack))))
 
-      ;; Edge: A > B, A -> B, A --> B, A -- B
-      (re-find #"(.+?)\s+((?:-*>)|(?:--))\s+(.+?)(?:\s*:\s*(.*))?$" line)
-      (let [[_ from type-str to label] (re-find #"(.+?)\s+((?:-*>)|(?:--))\s+(.+?)(?:\s*:\s*(.*))?$" line)
+      ;; Edge: A > B, A -> B, A --> B, A -- B [props] : label
+      (re-find #"^(.+?)\s+((?:-*>)|(?:--))\s+(.+?)(\s*\[.*\])?(?:\s*:\s*(.*))?$" line)
+      (let [[_ from type-str to props-str label] (re-find #"^(.+?)\s+((?:-*>)|(?:--))\s+(.+?)(\s*\[.*\])?(?:\s*:\s*(.*))?$" line)
             type (if (or (str/includes? type-str "--") (= type-str "--")) :dashed :solid)
             idx (count (:edges context))
-            edge {:id (str "edge-" idx)
-                  :from (str/trim (str/replace from #"\"" ""))
-                  :to (str/trim (str/replace to #"\"" ""))
-                  :type type
-                  :label (some-> label strip-quotes)}]
+            props (if props-str
+                    (parse-props (subs (str/trim props-str) 1 (dec (count (str/trim props-str)))))
+                    {})
+            final-type (or (some-> (:type props) keyword) type)
+            relation (some-> (:relation props) keyword)
+            edge (cond-> {:id (str "edge-" idx)
+                          :from (str/trim (str/replace from #"\"" ""))
+                          :to (str/trim (str/replace to #"\"" ""))
+                          :type final-type
+                          :relation relation
+                          :label (some-> label strip-quotes)}
+                   (seq props) (merge (dissoc props :type :relation)))]
         (update context :edges conj edge))
 
       ;; Node: Name [props]
@@ -101,6 +108,10 @@
     (letfn [(process-pool [pool path]
               (let [current-path (conj path pool)
                     nodes (:nodes pool)]
+                ;; Add the pool itself as a node
+                (swap! all-nodes conj (assoc pool
+                                             :swimlane-id (str/join " / " (map :name path))
+                                             :swimlane-path (mapv :name path)))
                 (doseq [item nodes]
                   (if (= (:type item) :pool)
                     (process-pool item current-path)

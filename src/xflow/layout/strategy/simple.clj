@@ -36,4 +36,7 @@
      :edges final-edges
      :width width
      :height height
-     :swimlanes []})) ;; No swimlanes for simple layout
+     :swimlanes []}))
+
+(defn layout [nodes edges options]
+  (assign-coordinates nodes edges options)) ;; No swimlanes for simple layout

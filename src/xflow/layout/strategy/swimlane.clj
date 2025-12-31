@@ -139,3 +139,6 @@
                         :label (:label l) :index (:index l) :vertical? true
                         :props (:props l)})))
                  lanes)))
+
+(defn layout [nodes edges swimlanes options]
+  {:nodes nodes :edges edges :swimlanes swimlanes :width 100 :height 100})

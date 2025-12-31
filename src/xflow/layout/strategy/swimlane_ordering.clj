@@ -131,3 +131,6 @@
                (range (dec max-rank) -1 -1))]
 
           (recur (inc iter) up-ranks up-order-map))))))
+
+(defn order-swimlanes [nodes edges pools options]
+  pools)

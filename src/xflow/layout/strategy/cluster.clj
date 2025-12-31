@@ -108,3 +108,6 @@
                  :index (:index l)})
               nil)))
         lanes))
+
+(defn layout [nodes edges pools options]
+  {:nodes nodes :edges edges :width 100 :height 100})

@@ -3,10 +3,32 @@
             [xflow.layout.strategy.swimlane :as swimlane]
             [xflow.layout.strategy.swimlane-ordering :as swimlane-ordering]
             [xflow.layout.strategy.cluster :as cluster]
+            [xflow.layout.strategy.compound :as compound]
             [xflow.layout.strategy.simple :as simple]
             [xflow.layout.routing.manhattan :as manhattan]
             [xflow.layout.routing.ortho :as ortho]
-            [xflow.layout.routing.spline :as spline]))
+            [xflow.layout.routing.spline :as spline]
+            [xflow.layout.routing.architecture :as architecture]))
+
+(defn- parse-number [v]
+  (cond
+    (number? v) (double v)
+    (string? v) (try
+                  (Double/parseDouble v)
+                  (catch Exception _ nil))
+    :else nil))
+
+(defn- coerce-node-size [node]
+  (let [props (:props node)
+        w (or (parse-number (:w node))
+              (parse-number (:width props))
+              (parse-number (:w props)))
+        h (or (parse-number (:h node))
+              (parse-number (:height props))
+              (parse-number (:h props)))]
+    (cond-> node
+      w (assoc :w w)
+      h (assoc :h h))))
 
 (defn- straighten-dummy-nodes [edges nodes options]
   (let [dummy-nodes (filter #(:dummy %) nodes)
@@ -125,7 +147,7 @@
       ;; Apply coordinates from dummy nodes to original edges as waypoints
         edges-with-points (sugiyama/apply-edge-points edges straightened-nodes)
 
-        ;; Remove dummy nodes
+      ;; Remove dummy nodes
         final-nodes (remove :dummy? processed-nodes)]
 
     {:nodes final-nodes
@@ -178,25 +200,48 @@
 
 (defn layout [nodes edges pools options]
   (let [layout-mode (:layout options)
-        routing-mode (:routing options "manhattan") ;; Default to manhattan
+        routing-mode (:routing options "manhattan")
         route-fn (case routing-mode
                    "spline" spline/route-edges
                    "ortho" ortho/route-edges
-                   manhattan/route-edges)]
-    (if (= layout-mode "simple")
-      ;; Simple Layout Strategy (No pools/lanes/clusters)
-      (let [direction (:direction options "tb")
-            ;; Map direction to routing mode: tb -> vertical, lr -> horizontal
-            routing-mode (if (= direction "tb") "vertical" "horizontal")
-            options (assoc options :swimlane-mode routing-mode)]
-        (-> (simple/assign-coordinates nodes edges options)
-            (route-fn options)
+                   "architecture" architecture/route-edges
+                   manhattan/route-edges)
+        sized-nodes (mapv coerce-node-size nodes)
+        hidden-edge? (fn [e]
+                       (let [t (:type e)
+                             hidden (:hidden e)]
+                         (or (= t :invisible)
+                             (= t "invisible")
+                             (= hidden true)
+                             (= hidden "true"))))
+        route-visible (fn [layout]
+                        (route-fn (update layout :edges (fn [es] (vec (remove hidden-edge? es))))
+                                  options))]
+    (cond
+      (= layout-mode "compound")
+      (-> (compound/layout sized-nodes edges pools options)
+          (route-visible)
+          (normalize-layout))
+
+      (= layout-mode "swimlane")
+      ;; Swimlane 模式使用排序后的泳道，再进入统一坐标分配流程
+      ;; FIX: Filter out pool nodes from content nodes, as they are containers, not layout nodes
+      (let [content-nodes (filterv #(not= (:type %) :pool) sized-nodes)
+            ordered-swimlanes (swimlane-ordering/order-swimlanes content-nodes edges pools options)]
+        (-> (assign-coordinates content-nodes edges ordered-swimlanes options)
+            (route-visible)
             (normalize-layout)))
 
-      ;; Complex Layout Strategy (Swimlanes/Clusters)
-      (let [options (if (= layout-mode "cluster")
-                      (assoc options :swimlane-mode "vertical")
-                      options)]
-        (-> (assign-coordinates nodes edges pools options)
-            (route-fn options)
+      (= layout-mode "cluster")
+      ;; Cluster 模式复用泳道的坐标分配与集群后处理，确保节点 x/y/w/h 完整
+      ;; FIX: Filter out pool nodes here too
+      (let [content-nodes (filterv #(not= (:type %) :pool) sized-nodes)]
+        (-> (assign-coordinates content-nodes edges pools options)
+            (route-visible)
+            (normalize-layout)))
+
+      :else
+      (let [simple-layout (simple/layout sized-nodes edges options)]
+        (-> simple-layout
+            (route-visible)
             (normalize-layout))))))

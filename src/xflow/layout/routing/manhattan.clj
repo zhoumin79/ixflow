@@ -3,22 +3,26 @@
 
 (defn- intersects-node? [segment node]
   (let [{:keys [x1 y1 x2 y2]} segment
-        {:keys [x y w h]} node
-        pad 10
-        nx (- x pad) ny (- y pad)
-        nw (+ w (* 2 pad)) nh (+ h (* 2 pad))]
-    ;; Check if vertical segment intersects node box
-    ;; Segment is vertical: x1 == x2
-    (if (= x1 x2)
-      (and (>= x1 nx) (<= x1 (+ nx nw))
-           (or (and (>= y1 ny) (<= y1 (+ ny nh)))
-               (and (>= y2 ny) (<= y2 (+ ny nh)))
-               (and (<= y1 ny) (>= y2 (+ ny nh)))))
-      ;; Horizontal segment
-      (and (>= y1 ny) (<= y1 (+ ny nh))
-           (or (and (>= x1 nx) (<= x1 (+ nx nw)))
-               (and (>= x2 nx) (<= x2 (+ nx nw)))
-               (and (<= x1 nx) (>= x2 (+ nx nw))))))))
+        {:keys [x y w h]} node]
+    (if (and (number? x1) (number? y1) (number? x2) (number? y2)
+             (number? x) (number? y) (number? w) (number? h))
+      (let [pad 10
+            nx (- x pad)
+            ny (- y pad)
+            nw (+ w (* 2 pad))
+            nh (+ h (* 2 pad))]
+        (if (= x1 x2)
+          (and (>= x1 nx)
+               (<= x1 (+ nx nw))
+               (or (and (>= y1 ny) (<= y1 (+ ny nh)))
+                   (and (>= y2 ny) (<= y2 (+ ny nh)))
+                   (and (<= y1 ny) (>= y2 (+ ny nh)))))
+          (and (>= y1 ny)
+               (<= y1 (+ ny nh))
+               (or (and (>= x1 nx) (<= x1 (+ nx nw)))
+                   (and (>= x2 nx) (<= x2 (+ nx nw)))
+                   (and (<= x1 nx) (>= x2 (+ nx nw)))))))
+      false)))
 
 (defn- find-safe-mid [p1 p2 nodes mode]
   (let [lr? (= mode "horizontal")
@@ -148,88 +152,81 @@
 (defn select-ports [n1 n2 mode]
   (let [vertical? (not= mode "horizontal")
         margin 20
+        x1 (double (or (:x n1) 0.0))
+        y1 (double (or (:y n1) 0.0))
+        w1 (double (or (:w n1) 0.0))
+        h1 (double (or (:h n1) 0.0))
+        x2 (double (or (:x n2) 0.0))
+        y2 (double (or (:y n2) 0.0))
+        w2 (double (or (:w n2) 0.0))
+        h2 (double (or (:h n2) 0.0))
         res (if vertical?
-              ;; Vertical Layout (TB)
-              (let [s-bottom (+ (:y n1) (:h n1))
-                    t-top (:y n2)
-                    ;; Standard: Target is below Source
+              (let [s-bottom (+ y1 h1)
+                    t-top y2
                     enough-vertical? (> t-top (+ s-bottom margin))]
                 (if enough-vertical?
-                  {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-bottom}
-                   :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-top}
+                  {:p1 {:x (+ x1 (/ w1 2.0)) :y s-bottom}
+                   :p2 {:x (+ x2 (/ w2 2.0)) :y t-top}
                    :strategy :standard}
-
-                  ;; Not enough vertical space. Check Horizontal space (Side-by-Side).
-                  (let [s-right (+ (:x n1) (:w n1))
-                        t-left (:x n2)
-                        s-left (:x n1)
-                        t-right (+ (:x n2) (:w n2))]
+                  (let [s-right (+ x1 w1)
+                        t-left x2
+                        s-left x1
+                        t-right (+ x2 w2)]
                     (cond
-                      ;; Target is to the Right
                       (> t-left (+ s-right margin))
-                      {:p1 {:x s-right :y (+ (:y n1) (/ (:h n1) 2))}
-                       :p2 {:x t-left :y (+ (:y n2) (/ (:h n2) 2))}
-                       :strategy :direct-horizontal} ;; New strategy for cross-routing
-
-                      ;; Target is to the Left
-                      (> s-left (+ t-right margin))
-                      {:p1 {:x s-left :y (+ (:y n1) (/ (:h n1) 2))}
-                       :p2 {:x t-right :y (+ (:y n2) (/ (:h n2) 2))}
+                      {:p1 {:x s-right :y (+ y1 (/ h1 2.0))}
+                       :p2 {:x t-left :y (+ y2 (/ h2 2.0))}
                        :strategy :direct-horizontal}
 
-                      ;; Overlap or Back-edge -> Side Loop
+                      (> s-left (+ t-right margin))
+                      {:p1 {:x s-left :y (+ y1 (/ h1 2.0))}
+                       :p2 {:x t-right :y (+ y2 (/ h2 2.0))}
+                       :strategy :direct-horizontal}
+
                       :else
-                      (let [cx1 (+ (:x n1) (/ (:w n1) 2))
-                            cx2 (+ (:x n2) (/ (:w n2) 2))
+                      (let [cx1 (+ x1 (/ w1 2.0))
+                            cx2 (+ x2 (/ w2 2.0))
                             side (if (> cx1 cx2) :right :left)]
                         {:p1 (if (= side :left)
-                               {:x (:x n1) :y (+ (:y n1) (/ (:h n1) 2))}
-                               {:x (+ (:x n1) (:w n1)) :y (+ (:y n1) (/ (:h n1) 2))})
+                               {:x x1 :y (+ y1 (/ h1 2.0))}
+                               {:x (+ x1 w1) :y (+ y1 (/ h1 2.0))})
                          :p2 (if (= side :left)
-                               {:x (:x n2) :y (+ (:y n2) (/ (:h n2) 2))}
-                               {:x (+ (:x n2) (:w n2)) :y (+ (:y n2) (/ (:h n2) 2))})
+                               {:x x2 :y (+ y2 (/ h2 2.0))}
+                               {:x (+ x2 w2) :y (+ y2 (/ h2 2.0))})
                          :strategy :side-loop
                          :side side})))))
-
-              ;; Horizontal Layout (LR)
-              (let [s-right (+ (:x n1) (:w n1))
-                    t-left (:x n2)
-                    ;; Standard: Target is to the Right of Source
+              (let [s-right (+ x1 w1)
+                    t-left x2
                     enough-horizontal? (> t-left (+ s-right margin))]
                 (if enough-horizontal?
-                  {:p1 {:x s-right :y (+ (:y n1) (/ (:h n1) 2))}
-                   :p2 {:x t-left :y (+ (:y n2) (/ (:h n2) 2))}
+                  {:p1 {:x s-right :y (+ y1 (/ h1 2.0))}
+                   :p2 {:x t-left :y (+ y2 (/ h2 2.0))}
                    :strategy :standard}
-
-                  ;; Not enough horizontal space. Check Vertical space.
-                  (let [s-bottom (+ (:y n1) (:h n1))
-                        t-top (:y n2)
-                        s-top (:y n1)
-                        t-bottom (+ (:y n2) (:h n2))]
+                  (let [s-bottom (+ y1 h1)
+                        t-top y2
+                        s-top y1
+                        t-bottom (+ y2 h2)]
                     (cond
-                      ;; Target is Below
                       (> t-top (+ s-bottom margin))
-                      {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-bottom}
-                       :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-top}
-                       :strategy :direct-vertical} ;; New strategy
-
-                      ;; Target is Above
-                      (> s-top (+ t-bottom margin))
-                      {:p1 {:x (+ (:x n1) (/ (:w n1) 2)) :y s-top}
-                       :p2 {:x (+ (:x n2) (/ (:w n2) 2)) :y t-bottom}
+                      {:p1 {:x (+ x1 (/ w1 2.0)) :y s-bottom}
+                       :p2 {:x (+ x2 (/ w2 2.0)) :y t-top}
                        :strategy :direct-vertical}
 
-                      ;; Overlap or Back-edge -> Side Loop
+                      (> s-top (+ t-bottom margin))
+                      {:p1 {:x (+ x1 (/ w1 2.0)) :y s-top}
+                       :p2 {:x (+ x2 (/ w2 2.0)) :y t-bottom}
+                       :strategy :direct-vertical}
+
                       :else
-                      (let [cy1 (+ (:y n1) (/ (:h n1) 2))
-                            cy2 (+ (:y n2) (/ (:h n2) 2))
+                      (let [cy1 (+ y1 (/ h1 2.0))
+                            cy2 (+ y2 (/ h2 2.0))
                             side (if (> cy1 cy2) :bottom :top)]
                         {:p1 (if (= side :top)
-                               {:x (+ (:x n1) (/ (:w n1) 2)) :y (:y n1)}
-                               {:x (+ (:x n1) (/ (:w n1) 2)) :y (+ (:y n1) (:h n1))})
+                               {:x (+ x1 (/ w1 2.0)) :y y1}
+                               {:x (+ x1 (/ w1 2.0)) :y (+ y1 h1)})
                          :p2 (if (= side :top)
-                               {:x (+ (:x n2) (/ (:w n2) 2)) :y (:y n2)}
-                               {:x (+ (:x n2) (/ (:w n2) 2)) :y (+ (:y n2) (:h n2))})
+                               {:x (+ x2 (/ w2 2.0)) :y y2}
+                               {:x (+ x2 (/ w2 2.0)) :y (+ y2 h2)})
                          :strategy :side-loop
                          :side side}))))))]
     res))
@@ -325,15 +322,25 @@
                                             (let [{:keys [e p1 p2]} geom]
                                               (when (seq (:points e))
                                                 (let [waypoints (:points e)
+                                                      vertical? (not= mode "horizontal")
+                                                      preferred-side (if vertical? :right :bottom)
+                                                      channel (find-safe-channel p1 p2 nodes mode preferred-side)
+                                                      preferred-path (if vertical?
+                                                                       [p1 {:x channel :y (:y p1)} {:x channel :y (:y p2)} p2]
+                                                                       [p1 {:x (:x p1) :y channel} {:x (:x p2) :y channel} p2])
+                                                      preferred (clean-points preferred-path)
                                                       ;; Try direct routing first to see if we can avoid zigzag
                                                       direct-path (route-segment p1 p2 nodes mode)
-                                                      is-simple (simple-path? direct-path mode)]
+                                                      direct (clean-points direct-path)]
 
-                                                  (if is-simple
-                                                    ;; If direct path is simple (Standard/Safe Mid), prefer it over waypoints
-                                                    (assoc e :points (clean-points direct-path))
+                                                  (cond
+                                                    (path-valid? preferred nodes)
+                                                    (assoc e :points preferred)
 
-                                                    ;; Fallback to waypoints if direct path is complex (Side Loop)
+                                                    (path-valid? direct nodes)
+                                                    (assoc e :points direct)
+
+                                                    :else
                                                     (let [full-path (concat [p1] waypoints [p2])
                                                           final-points
                                                           (loop [pts full-path
