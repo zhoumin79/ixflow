@@ -15,8 +15,13 @@
 
         ;; Determine layout options from config
         config (:config model)
-        options {:direction (or (:direction config) "lr") ;; lr or tb
-                 :swimlane-mode (or (:swimlane-mode config) "horizontal")
+        direction (or (:direction config) "lr")
+        swimlane-mode (or (:swimlane-mode config)
+                          (if (or (= direction "tb") (= direction "vertical"))
+                            "vertical"
+                            "horizontal"))
+        options {:direction direction
+                 :swimlane-mode swimlane-mode
                  :layout (:layout config) ;; Pass layout mode
                  :routing (:routing config)} ;; Pass routing mode (spline or manhattan)
 

@@ -1,8 +1,10 @@
-{:name "Expense Approval Demo"
- :description "Comprehensive expense submission and approval flow demonstration"
+{:name "Commercial Optimization Test"
+ :description "Demonstrating optimized swimlane layout with orthogonal routing"
  :theme {:name "default" :mode "light"}
- :data {:config {:layout "swimlane" :direction "lr"}
-        :pool-dsl "title Expense Submission and Approval Flow
+ :data {:config {:layout "swimlane"
+                 :routing "ortho"
+                 :direction "lr"}
+        :pool-dsl "title Optimized Expense Flow
 
 User [color: lightblue] {
   Login [icon: log-in]

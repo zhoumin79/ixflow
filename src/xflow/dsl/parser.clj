@@ -106,7 +106,7 @@
                     (process-pool item current-path)
                     (swap! all-nodes conj (assoc item
                                                  :swimlane-id (str/join " / " (map :name current-path))
-                                                 :swimlane-path current-path))))))]
+                                                 :swimlane-path (mapv :name current-path)))))))]
       (doseq [pool pools]
         (process-pool pool [])))
     @all-nodes))

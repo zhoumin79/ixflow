@@ -1,10 +1,55 @@
 (ns xflow.layout.core
   (:require [xflow.layout.sugiyama :as sugiyama]
             [xflow.layout.strategy.swimlane :as swimlane]
+            [xflow.layout.strategy.swimlane-ordering :as swimlane-ordering]
             [xflow.layout.strategy.cluster :as cluster]
             [xflow.layout.strategy.simple :as simple]
             [xflow.layout.routing.manhattan :as manhattan]
+            [xflow.layout.routing.ortho :as ortho]
             [xflow.layout.routing.spline :as spline]))
+
+(defn- straighten-dummy-nodes [edges nodes options]
+  (let [dummy-nodes (filter #(:dummy %) nodes)
+        real-nodes (remove #(:dummy %) nodes)
+        node-map (into {} (map (juxt :id identity) nodes))
+        layout-dir (:direction options "lr")
+        horizontal? (or (= layout-dir "lr") (= layout-dir "rl"))
+
+        ;; Helper to find the chain of dummy nodes for an edge
+        find-dummy-chain (fn [edge]
+                           (let [start-node (get node-map (:from edge))
+                                 end-node (get node-map (:to edge))
+                                 ;; Find dummy nodes that belong to this edge
+                                 chain (filter #(and (:dummy %) (= (:edge-id %) (:id edge))) nodes)
+                                 sorted-chain (sort-by :rank chain)]
+                             {:start start-node
+                              :end end-node
+                              :dummies sorted-chain}))
+
+        ;; Function to adjust a single chain
+        adjust-chain (fn [nodes-map {:keys [start end dummies]}]
+                       (if (empty? dummies)
+                         nodes-map
+                         (let [start-pos (if horizontal? (:y start) (:x start))
+                               end-pos (if horizontal? (:y end) (:x end))
+
+                               ;; If start and end are close (e.g. same swimlane), align perfectly to start
+                               target-pos (if (< (Math/abs (- start-pos end-pos)) 50)
+                                            start-pos
+                                            ;; If different, stick to start's level for now to prefer L-shape over Z-shape
+                                            start-pos)
+
+                               ;; Update dummy nodes in the map
+                               updated-dummies (map (fn [d]
+                                                      (if horizontal?
+                                                        (assoc d :y target-pos)
+                                                        (assoc d :x target-pos)))
+                                                    dummies)]
+                           (reduce (fn [m n] (assoc m (:id n) n)) nodes-map updated-dummies))))]
+
+    (vals (reduce adjust-chain
+                  (into {} (map (juxt :id identity) nodes))
+                  (map find-dummy-chain edges)))))
 
 (defn- assign-coordinates [nodes edges pools options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
@@ -32,7 +77,11 @@
         ;; --------------------------------------------------
 
         ;; --- Optimization: Apply Crossing Minimization ---
-        ordered-nodes (sugiyama/order-nodes nodes-with-dummies edges-with-dummies)
+        ordered-nodes
+        (if (or (= (:layout options) "swimlane") (= (:layout options) "cluster"))
+          (swimlane-ordering/order-nodes nodes-with-dummies edges-with-dummies pools)
+          (sugiyama/order-nodes nodes-with-dummies edges-with-dummies))
+
         ;; Sort by rank then order to ensure correct processing order
         sorted-nodes (sort-by (juxt :rank :order) ordered-nodes)
         ;; -------------------------------------------------
@@ -69,9 +118,12 @@
           (cluster/calculate-cluster-geometries lanes processed-nodes)
           (swimlane/calculate-strip-geometries lanes width height mode))
 
-        ;; --- Phase 3: Extract Dummy Coordinates ---
-        ;; Apply coordinates from dummy nodes to original edges as waypoints
-        edges-with-points (sugiyama/apply-edge-points edges processed-nodes)
+      ;; --- Phase 3: Extract Dummy Coordinates ---
+      ;; Optimization: Straighten dummy nodes to avoid zigzag lines
+        straightened-nodes (straighten-dummy-nodes edges processed-nodes options)
+
+      ;; Apply coordinates from dummy nodes to original edges as waypoints
+        edges-with-points (sugiyama/apply-edge-points edges straightened-nodes)
 
         ;; Remove dummy nodes
         final-nodes (remove :dummy? processed-nodes)]
@@ -127,8 +179,9 @@
 (defn layout [nodes edges pools options]
   (let [layout-mode (:layout options)
         routing-mode (:routing options "manhattan") ;; Default to manhattan
-        route-fn (if (= routing-mode "spline")
-                   spline/route-edges
+        route-fn (case routing-mode
+                   "spline" spline/route-edges
+                   "ortho" ortho/route-edges
                    manhattan/route-edges)]
     (if (= layout-mode "simple")
       ;; Simple Layout Strategy (No pools/lanes/clusters)

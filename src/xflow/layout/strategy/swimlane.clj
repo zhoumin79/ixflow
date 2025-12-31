@@ -122,8 +122,8 @@
                          (+ flow-pos 50))]
 
                  (assoc n
-                        :x x :y y
-                        :w NODE-WIDTH :h NODE-HEIGHT)))
+                        :x (double x) :y (double y)
+                        :w (double NODE-WIDTH) :h (double NODE-HEIGHT))))
              ranked-nodes)]
     initial-nodes))
 
@@ -132,10 +132,10 @@
     (map-indexed (fn [i l]
                    (let [offset (nth lane-offsets i)]
                      (if (= mode "horizontal")
-                       {:x 0 :y offset :w width :h (:size l)
+                       {:x (double 0) :y (double offset) :w (double width) :h (double (:size l))
                         :label (:label l) :index (:index l) :vertical? false
                         :props (:props l)}
-                       {:x offset :y 0 :w (:size l) :h height
+                       {:x (double offset) :y (double 0) :w (double (:size l)) :h (double height)
                         :label (:label l) :index (:index l) :vertical? true
                         :props (:props l)})))
                  lanes)))
