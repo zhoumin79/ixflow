@@ -189,67 +189,53 @@
   (let [vertical? (= mode "vertical")
         n1-pos (if vertical? (:y n1) (:x n1))
         n2-pos (if vertical? (:y n2) (:x n2))
-        reversed? (> n1-pos n2-pos) ;; Back edge check
-
+        reversed? (> n1-pos n2-pos)
         n1-ports (get-in n1 [:ports :out])
         n2-ports-in (get-in n2 [:ports :in])
         n2-ports-out (get-in n2 [:ports :out])
-
-        ;; Determine preferred side for back-edge (Right for TB, Bottom for LR)
+        preferred-out (if vertical? :bottom :right)
+        preferred-in (if vertical? :top :left)
         loop-side (if vertical? :right :bottom)
-        ;; Determine "end" side (Top for TB, Left for LR) - often compatible with loop
-        end-side (if vertical? :top :left)
-
-        ;; Allow using loop-side (e.g. Right) as input for back-edges IF it's an existing port (even if Output)
-        ;; This enables the cleaner "Right -> Right" C-shape loop.
+        end-side preferred-in
         n2-ports (if reversed?
                    (cond
                      (and (seq n2-ports-out) (contains? (set n2-ports-out) loop-side))
                      (vec (conj (or n2-ports-in []) loop-side))
                      :else n2-ports-in)
                    n2-ports-in)
-
-        ;; Check if ports allow this side
         n1-loop-allowed? (or (empty? n1-ports) (contains? (set n1-ports) loop-side))
-
-        ;; For target node, we allow loop-side OR end-side (since we can route from loop channel to end side)
         n2-loop-allowed? (or (empty? n2-ports)
                              (contains? (set n2-ports) loop-side)
                              (contains? (set n2-ports) end-side))
-
-        ;; Force loop if it's a back edge AND ports allow it
         should-loop? (and reversed? n1-loop-allowed? n2-loop-allowed?)
-
         p1 (when (seq n1-ports) (get-best-port n1 n1-ports n2))
-        p2 (when (seq n2-ports) (get-best-port n2 n2-ports n1))]
-
+        p2 (when (seq n2-ports) (get-best-port n2 n2-ports n1))
+        preferred-out-allowed? (or (empty? n1-ports) (contains? (set n1-ports) preferred-out))
+        preferred-in-allowed? (or (empty? n2-ports) (contains? (set n2-ports) preferred-in))]
     (if (and (or p1 p2) (not should-loop?))
-      (let [;; Use constrained port if available, otherwise calculate center/default
-            final-p1 (or p1 (get-port-point n1 (if (= mode "vertical") :bottom :right)))
-            final-p2 (or p2 (get-port-point n2 (if (= mode "vertical") :top :left)))]
+      (let [final-p1 (if (and vertical? (not reversed?) preferred-out-allowed?)
+                       (get-port-point n1 preferred-out)
+                       (or p1 (get-port-point n1 preferred-out)))
+            final-p2 (if (and vertical? (not reversed?) preferred-in-allowed?)
+                       (get-port-point n2 preferred-in)
+                       (or p2 (get-port-point n2 preferred-in)))]
         {:p1 final-p1
          :p2 final-p2
          :strategy :constrained})
-
-      ;; Original Logic Fallback / Forced Loop
       (if reversed?
         (let [side (if (and n1-loop-allowed? n2-loop-allowed?) loop-side (if vertical? :right :bottom))
-              ;; For p1, we prefer the loop side
               p1 (if (and (seq n1-ports) (not (contains? (set n1-ports) side)))
-                   (get-best-port n1 n1-ports {:x (if vertical? 100000 (:x n1)) :y (if vertical? (:y n1) 100000)}) ;; Mock target far away
+                   (get-best-port n1 n1-ports {:x (if vertical? 100000 (:x n1)) :y (if vertical? (:y n1) 100000)})
                    (get-port-point n1 side))
-
-              ;; For p2, we prefer loop side, but accept end-side if loop-side is forbidden
               p2 (if (and (seq n2-ports) (not (contains? (set n2-ports) side)))
-                   ;; If side is forbidden, try end-side (Top/Left)
                    (if (contains? (set n2-ports) end-side)
                      (get-port-point n2 end-side)
-                     ;; If neither, use whatever is best?
                      (get-best-port n2 n2-ports {:x (if vertical? 100000 (:x n2)) :y (if vertical? (:y n2) 100000)}))
                    (get-port-point n2 side))]
           {:p1 p1 :p2 p2 :strategy :side-loop :side side})
-        (let [p1 (get-port-point n1 (if vertical? :bottom :right))
-              p2 (get-port-point n2 (if vertical? :top :left))] \n {:p1 p1 :p2 p2 :strategy :direct})))))
+        (let [p1 (get-port-point n1 preferred-out)
+              p2 (get-port-point n2 preferred-in)]
+          {:p1 p1 :p2 p2 :strategy :direct})))))
 
 (defn- collinear? [p1 p2 p3]
   (let [x1 (:x p1) y1 (:y p1)

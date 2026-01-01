@@ -31,7 +31,7 @@
         in-degrees (reduce (fn [acc e] (update acc (:to e) (fnil inc 0)))
                            (zipmap all-node-ids (repeat 0))
                            edges)
-        start-node (apply min-key #(get in-degrees % 0) all-node-ids)]
+        start-node (apply min-key #(get in-degrees % 0) (sort all-node-ids))]
 
     (loop [tree-nodes #{start-node}
            tree-edges #{}
