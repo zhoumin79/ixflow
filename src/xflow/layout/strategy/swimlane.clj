@@ -9,6 +9,7 @@
 (def NODE-HEIGHT 80)
 (def NODE-SEP 50)
 (def LAYER-SEP 100)
+(def HEADER-SPACE 60) ;; Reserved space for swimlane headers
 
 ;; --- 辅助函数 (Helpers) ---
 
@@ -122,7 +123,7 @@
                               (* idx NODE-SEP))
 
                  pos (+ start-pos prev-size)
-                 rank-pos (* rank (+ (if is-horizontal? NODE-WIDTH NODE-HEIGHT) LAYER-SEP))]
+                 rank-pos (+ (* rank (+ (if is-horizontal? NODE-WIDTH NODE-HEIGHT) LAYER-SEP)) HEADER-SPACE)]
 
              (if is-horizontal?
                (assoc node
