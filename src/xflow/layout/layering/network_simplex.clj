@@ -16,22 +16,6 @@
 
 ;; --- 2. Initial Feasible Ranking (Longest Path) ---
 
-(defn- init-ranks [nodes edges]
-  "Computes an initial feasible ranking using Longest Path.
-   Ensures rank(v) >= rank(u) + min-len(u,v)."
-  (let [;; Map node -> [edge1, edge2...] where edge has :to
-        adj (reduce (fn [m e] (update m (:from e) (fnil conj []) e)) {} edges)
-        ranks (atom {})]
-    (letfn [(visit [node-id depth visited]
-              (when-not (contains? visited node-id)
-                (swap! ranks update node-id #(max (or % 0) depth))
-                (doseq [edge (get adj node-id)]
-                  (let [len (get edge :min-len 1)]
-                    (visit (:to edge) (+ depth len) (conj visited node-id))))))]
-      (doseq [n nodes]
-        (visit (:id n) 0 #{})))
-    @ranks))
-
 ;; --- 3. Feasible Tree Construction & Rank Tightening ---
 
 (defn- build-tight-tree [nodes edges initial-ranks]
@@ -41,8 +25,13 @@
    and continues. This effectively compacts the layout."
   (let [all-node-ids (set (map :id nodes))
         node-count (count all-node-ids)
-        ;; Start with an arbitrary node in the tree
-        start-node (first all-node-ids)]
+
+        ;; Pick a start node: prefer sources (in-degree 0)
+        ;; This ensures the tree grows from the 'start' of the flow
+        in-degrees (reduce (fn [acc e] (update acc (:to e) (fnil inc 0)))
+                           (zipmap all-node-ids (repeat 0))
+                           edges)
+        start-node (apply min-key #(get in-degrees % 0) all-node-ids)]
 
     (loop [tree-nodes #{start-node}
            tree-edges #{}
@@ -69,13 +58,6 @@
                      ranks))
 
             ;; Case B: No tight edge. Must adjust ranks.
-            ;; Find edge with minimal slack connecting Tree -> Non-Tree
-            ;; (We only look at outgoing edges from Tree to Non-Tree to 'pull' Non-Tree nodes up,
-            ;;  or incoming from Non-Tree to Tree? 
-            ;;  To minimize ranks, we usually want to pull nodes 'up' (lower rank number).
-            ;;  If u in Tree, v in Non-Tree: slack = r(v) - r(u) - minlen.
-            ;;  We want to reduce slack. Decrease r(v).
-            ;;  So we look for minimal slack edges (u,v) where u in Tree, v not in Tree.)
             (let [candidates (filter (fn [e]
                                        (and (contains? tree-nodes (:from e))
                                             (not (contains? tree-nodes (:to e)))))
@@ -83,11 +65,7 @@
 
                   min-slack-edge (if (seq candidates)
                                    (apply min-key #(slack ranks %) candidates)
-                                   ;; If no outgoing edges, check incoming?
-                                   ;; If the graph is connected, there must be some edge.
-                                   ;; If we only have incoming edges from Non-Tree to Tree:
-                                   ;; v in Non-Tree, u in Tree. slack = r(u) - r(v) - minlen.
-                                   ;; We want to reduce slack. Increase r(v).
+                                   ;; If no outgoing edges, check incoming
                                    (first (filter (fn [e]
                                                     (and (not (contains? tree-nodes (:from e)))
                                                          (contains? tree-nodes (:to e))))
@@ -97,8 +75,6 @@
 
               (if min-slack-edge
                 ;; Adjust ranks of ALL Non-Tree nodes
-                ;; If we found (Tree -> Non-Tree), we decrease Non-Tree ranks by delta.
-                ;; If we found (Non-Tree -> Tree), we increase Non-Tree ranks by delta.
                 (let [is-outgoing (contains? tree-nodes (:from min-slack-edge))
                       op (if is-outgoing - +)
                       new-ranks (reduce (fn [r n-id]
@@ -114,6 +90,30 @@
                   (recur (conj tree-nodes next-node) tree-edges ranks))))))))))
 
 ;; --- 4. Main Entry Point ---
+
+(defn- init-ranks [nodes edges]
+  "Computes an initial feasible ranking using Longest Path.
+   Ensures rank(v) >= rank(u) + min-len(u,v)."
+  (let [;; Map node -> [edge1, edge2...] where edge has :to
+        adj (reduce (fn [m e] (update m (:from e) (fnil conj []) e)) {} edges)
+
+        ;; Calculate in-degrees to visit source nodes first
+        in-degrees (reduce (fn [acc e] (update acc (:to e) (fnil inc 0)))
+                           (zipmap (map :id nodes) (repeat 0))
+                           edges)
+        ;; Sort nodes by in-degree (ascending) so sources (degree 0) are visited first
+        sorted-nodes (sort-by (fn [n] (get in-degrees (:id n) 0)) nodes)
+
+        ranks (atom {})]
+    (letfn [(visit [node-id depth visited]
+              (when-not (contains? visited node-id)
+                (swap! ranks update node-id #(max (or % 0) depth))
+                (doseq [edge (get adj node-id)]
+                  (let [len (get edge :min-len 1)]
+                    (visit (:to edge) (+ depth len) (conj visited node-id))))))]
+      (doseq [n sorted-nodes]
+        (visit (:id n) 0 #{})))
+    @ranks))
 
 (defn assign-ranks [nodes edges]
   (if (empty? nodes)

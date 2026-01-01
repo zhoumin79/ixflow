@@ -6,36 +6,36 @@ height: 1200
 rankdir: BT
 
 EncoderColumn [fill: none, stroke: none] {
-  Inputs [shape: rect, label: \"Inputs\", fill: #ffcdd2]
-  InputEmbedding [shape: rect, label: \"Input Embedding\", fill: #f8bbd0]
-  PositionalEncoding [shape: circle, label: \"+\", width: 40, height: 40, fill: #ffffff]
+  Inputs [shape: rect, label: Inputs, fill: #ffcdd2]
+  InputEmbedding [shape: rect, label: Input Embedding, fill: #f8bbd0]
+  PositionalEncoding [shape: circle, label: +, width: 40, height: 40, fill: #ffffff]
 
   Encoder [fill: #eeeeee, stroke: #999, rankdir: BT] {
-    MultiHeadAttn [label: \"Multi-Head Attention\", shape: rect, fill: #ffcc99]
-    AddNorm1 [label: \"Add & Norm\", shape: rect, fill: #ffffcc]
-    FeedForward [label: \"Feed Forward\", shape: rect, fill: #cceeff]
-    AddNorm2 [label: \"Add & Norm\", shape: rect, fill: #ffffcc]
+    MultiHeadAttn [label: Multi-Head Attention, shape: rect, fill: #ffcc99]
+    AddNorm1 [label: Add & Norm, shape: rect, fill: #ffffcc]
+    FeedForward [label: Feed Forward, shape: rect, fill: #cceeff]
+    AddNorm2 [label: Add & Norm, shape: rect, fill: #ffffcc]
   }
 }
 
 DecoderColumn [fill: none, stroke: none] {
-  Outputs [shape: rect, label: \"Outputs (Shifted Right)\", fill: #ffcdd2]
-  OutputEmbedding [shape: rect, label: \"Output Embedding\", fill: #f8bbd0]
-  PositionalEncodingDec [shape: circle, label: \"+\", width: 40, height: 40, fill: #ffffff]
+  Outputs [shape: rect, label: Outputs (Shifted Right), fill: #ffcdd2]
+  OutputEmbedding [shape: rect, label: Output Embedding, fill: #f8bbd0]
+  PositionalEncodingDec [shape: circle, label: +, width: 40, height: 40, fill: #ffffff]
 
   Decoder [fill: #eeeeee, stroke: #999, rankdir: BT] {
-    MaskedAttn [label: \"Masked Multi-Head Attention\", shape: rect, fill: #ffcc99]
-    AddNorm3 [label: \"Add & Norm\", shape: rect, fill: #ffffcc]
-    MultiHeadAttnDec [label: \"Multi-Head Attention\", shape: rect, fill: #ffcc99]
-    AddNorm4 [label: \"Add & Norm\", shape: rect, fill: #ffffcc]
-    FeedForwardDec [label: \"Feed Forward\", shape: rect, fill: #cceeff]
-    AddNorm5 [label: \"Add & Norm\", shape: rect, fill: #ffffcc]
+    MaskedAttn [label: Masked Multi-Head Attention, shape: rect, fill: #ffcc99]
+    AddNorm3 [label: Add & Norm, shape: rect, fill: #ffffcc]
+    MultiHeadAttnDec [label: Multi-Head Attention, shape: rect, fill: #ffcc99]
+    AddNorm4 [label: Add & Norm, shape: rect, fill: #ffffcc]
+    FeedForwardDec [label: Feed Forward, shape: rect, fill: #cceeff]
+    AddNorm5 [label: Add & Norm, shape: rect, fill: #ffffcc]
   }
 }
 
-Linear [shape: rect, label: \"Linear\", fill: #c5cae9]
-Softmax [shape: rect, label: \"Softmax\", fill: #c8e6c9]
-OutputProbs [shape: rect, label: \"Output Probabilities\", fill: #ffffff]
+Linear [shape: rect, label: Linear, fill: #c5cae9]
+Softmax [shape: rect, label: Softmax, fill: #c8e6c9]
+OutputProbs [shape: rect, label: Output Probabilities, fill: #ffffff]
 
 // Connections
 Inputs -> InputEmbedding

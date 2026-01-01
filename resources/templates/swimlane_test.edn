@@ -8,30 +8,30 @@ direction: lr
 swimlane-mode: horizontal
 
 // Swimlane Structure
-\"Department\" {
-  \"Employee\" {
+Department {
+  Employee {
     Start [color: #e3f2fd]
-    \"Fill Form\"
-    \"Submit\"
+    Fill Form
+    Submit
   }
   
-  \"Manager\" {
-    \"Review\" [color: #fff3e0]
-    \"Approve?\" [shape: diamond]
+  Manager {
+    Review [color: #fff3e0]
+    Approve? [shape: diamond]
   }
   
-  \"Finance\" {
-    \"Pay\" [color: #e8f5e9]
+  Finance {
+    Pay [color: #e8f5e9]
     End [color: #ffebee]
   }
 }
 
 // Flow
-Start --> \"Fill Form\"
-\"Fill Form\" --> \"Submit\"
-\"Submit\" --> \"Review\"
-\"Review\" --> \"Approve?\"
-\"Approve?\" --> \"Pay\" : Yes
-\"Approve?\" --> \"Fill Form\" : No
-\"Pay\" --> End
+Start --> Fill Form
+Fill Form --> Submit
+Submit --> Review
+Review --> Approve?
+Approve? --> Pay : Yes
+Approve? --> Fill Form : No
+Pay --> End
 "}}
