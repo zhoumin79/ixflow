@@ -8,7 +8,8 @@
             [xflow.layout.routing.manhattan :as manhattan]
             [xflow.layout.routing.ortho :as ortho]
             [xflow.layout.routing.spline :as spline]
-            [xflow.layout.routing.architecture :as architecture]))
+            [xflow.layout.routing.architecture :as architecture]
+            [xflow.theme.rule :as rule]))
 
 (defn- parse-number [v]
   (cond
@@ -22,13 +23,13 @@
   (let [props (:props node)
         w (or (parse-number (:w node))
               (parse-number (:width props))
-              (parse-number (:w props)))
+              (parse-number (:w props))
+              120) ;; Default width
         h (or (parse-number (:h node))
               (parse-number (:height props))
-              (parse-number (:h props)))]
-    (cond-> node
-      w (assoc :w w)
-      h (assoc :h h))))
+              (parse-number (:h props))
+              60)] ;; Default height
+    (merge node {:w w :h h})))
 
 (defn- straighten-dummy-nodes [edges nodes options]
   (let [dummy-nodes (filter #(:dummy %) nodes)
@@ -154,59 +155,180 @@
      :edges edges-with-points
      :swimlanes swimlane-geoms
      :width width
-     :height height})) ;; Segments
-        ;; --------------------------------------------------
+     :height height}))
 
-(defn- normalize-layout [{:keys [nodes edges swimlanes width height] :as layout-result}]
-  (let [;; Collect all points to find bounds
-        node-points (mapcat (fn [n] [{:x (:x n) :y (:y n)}
-                                     {:x (+ (:x n) (:w n)) :y (+ (:y n) (:h n))}]) nodes)
-        edge-points (mapcat (fn [e] (:points e)) edges)
-        swimlane-points (mapcat (fn [s] [{:x (:x s) :y (:y s)}
-                                         {:x (+ (:x s) (:w s)) :y (+ (:y s) (:h s))}]) swimlanes)
+(defn- calculate-label-pos [points]
+  (let [cnt (count points)]
+    (if (= cnt 2)
+      ;; Midpoint of segment
+      (let [p0 (first points)
+            p1 (second points)
+            ;; Initial guess at 0.4
+            t 0.4
+            pos-x (+ (:x p0) (* (- (:x p1) (:x p0)) t))
+            pos-y (+ (:y p0) (* (- (:y p1) (:y p0)) t))
 
-        all-points (concat node-points edge-points swimlane-points)
+            ;; Heuristic to avoid overlap with target (p1)
+            dx (- (:x p1) (:x p0))
+            dy (- (:y p1) (:y p0))
+            dist (Math/sqrt (+ (* dx dx) (* dy dy)))]
+
+        ;; If distance is small, ensure we are far enough from p1
+        (if (> (Math/abs dy) (Math/abs dx))
+          ;; Vertical layout: check Y distance
+          (let [safe-y (- (:y p1) 35)] {:x pos-x :y (min pos-y safe-y)})
+          ;; Horizontal layout: check X distance (assuming L->R)
+          (if (> dx 0)
+            (let [safe-x (- (:x p1) 40)] {:x (min pos-x safe-x) :y pos-y})
+            {:x pos-x :y pos-y}))) ;; Backwards/other cases, leave as is
+
+      ;; Multi-point path (Spline or Manhattan): Find longest segment
+      (let [segments (map vector points (rest points))
+            length-sq (fn [[p1 p2]]
+                        (+ (Math/pow (- (:x p1) (:x p2)) 2)
+                           (Math/pow (- (:y p1) (:y p2)) 2)))
+            longest-segment (apply max-key length-sq segments)
+            [p1 p2] longest-segment]
+        {:x (/ (+ (:x p1) (:x p2)) 2)
+         :y (/ (+ (:y p1) (:y p2)) 2)}))))
+
+(defn normalize-layout [{:keys [nodes edges swimlanes width height] :as layout-result}]
+  (let [;; Pre-calculate edge label positions
+        edges-with-labels (mapv (fn [e]
+                                  (if (and (:label e) (:points e) (seq (:points e)))
+                                    (assoc e :label-pos (calculate-label-pos (:points e)))
+                                    e))
+                                edges)
+
+        ;; 辅助函数：获取实体的有效坐标点
+        get-points (fn [item]
+                     (when (and (number? (:x item)) (number? (:y item)))
+                       (let [w (or (:w item) 0)
+                             h (or (:h item) 0)]
+                         [{:x (:x item) :y (:y item)}
+                          {:x (+ (:x item) w) :y (+ (:y item) h)}])))
+
+        ;; 辅助函数：获取边的所有点
+        get-edge-points (fn [edge]
+                          (filter (fn [p] (and (number? (:x p)) (number? (:y p))))
+                                  (:points edge)))
+
+        ;; 辅助函数：获取标签的边界点 (估算)
+        get-label-points (fn [item]
+                           (when (or (:label item) (:id item))
+                             (let [pos (or (:label-pos item)
+                                           (when (and (:x item) (:y item))
+                                             {:x (+ (:x item) (/ (or (:w item) 0) 2))
+                                              :y (+ (:y item) (/ (or (:h item) 0) 2))}))]
+                               (when pos
+                                 (let [text (str (or (:label item) (:id item)))
+                                       len (count text)
+                                       approx-w (* len 8) ;; 估算每个字符 8px 宽
+                                       approx-h 20 ;; 估算高度 20px
+                                       cx (:x pos)
+                                       cy (:y pos)]
+                                   (when (and (number? cx) (number? cy))
+                                     [{:x (- cx (/ approx-w 2)) :y (- cy (/ approx-h 2))}
+                                      {:x (+ cx (/ approx-w 2)) :y (+ cy (/ approx-h 2))}]))))))
+
+        ;; 收集所有点以计算边界
+        node-points (mapcat get-points nodes)
+        node-label-points (mapcat get-label-points nodes)
+        edge-points (mapcat get-edge-points edges-with-labels)
+        edge-label-points (mapcat get-label-points edges-with-labels)
+        swimlane-points (mapcat get-points swimlanes)
+
+        all-points (concat node-points node-label-points edge-points edge-label-points swimlane-points)
 
         min-x (if (seq all-points) (apply min (map :x all-points)) 0)
         min-y (if (seq all-points) (apply min (map :y all-points)) 0)
 
-        padding 20
-        ;; Shift to ensure min is at padding
+        padding 50
+        ;; 计算偏移量，确保最小坐标位于 padding 处
         shift-x (- padding min-x)
-        shift-y (- padding min-y)]
+        shift-y (- padding min-y)
 
-    (if (and (zero? shift-x) (zero? shift-y))
-      layout-result
-      (let [new-nodes (map (fn [n] (assoc n :x (+ (:x n) shift-x) :y (+ (:y n) shift-y))) nodes)
-            new-edges (map (fn [e] (if (:points e)
-                                     (update e :points (fn [pts] (mapv #(assoc % :x (+ (:x %) shift-x) :y (+ (:y %) shift-y)) pts)))
-                                     e)) edges)
-            new-swimlanes (map (fn [s] (assoc s :x (+ (:x s) shift-x) :y (+ (:y s) shift-y))) swimlanes)
+        ;; 始终重新计算节点和边，确保画布尺寸正确包含右侧/底部的 padding
+        nodes-shifted (if (and (zero? shift-x) (zero? shift-y))
+                        nodes
+                        (mapv (fn [n]
+                                (if (and (number? (:x n)) (number? (:y n)))
+                                  (assoc n :x (+ (:x n) shift-x) :y (+ (:y n) shift-y))
+                                  n))
+                              nodes))
 
-            ;; Re-calculate dimensions
-            all-new-points (concat (mapcat (fn [n] [{:x (:x n) :y (:y n)} {:x (+ (:x n) (:w n)) :y (+ (:y n) (:h n))}]) new-nodes)
-                                   (mapcat (fn [e] (:points e)) new-edges)
-                                   (mapcat (fn [s] [{:x (:x s) :y (:y s)} {:x (+ (:x s) (:w s)) :y (+ (:y s) (:h s))}]) new-swimlanes))
+        edges-shifted (if (and (zero? shift-x) (zero? shift-y))
+                        edges-with-labels
+                        (mapv (fn [e]
+                                (let [e (if (:points e)
+                                          (update e :points (fn [pts]
+                                                              (mapv (fn [p]
+                                                                      (if (and (number? (:x p)) (number? (:y p)))
+                                                                        (assoc p :x (+ (:x p) shift-x) :y (+ (:y p) shift-y))
+                                                                        p))
+                                                                    pts)))
+                                          e)
+                                      e (if (:p1 e)
+                                          (update e :p1 (fn [p] (if (and (number? (:x p)) (number? (:y p)))
+                                                                  (assoc p :x (+ (:x p) shift-x) :y (+ (:y p) shift-y))
+                                                                  p)))
+                                          e)
+                                      e (if (:p2 e)
+                                          (update e :p2 (fn [p] (if (and (number? (:x p)) (number? (:y p)))
+                                                                  (assoc p :x (+ (:x p) shift-x) :y (+ (:y p) shift-y))
+                                                                  p)))
+                                          e)]
+                                  (if (:label-pos e)
+                                    (update e :label-pos (fn [p]
+                                                           (assoc p :x (+ (:x p) shift-x) :y (+ (:y p) shift-y))))
+                                    e)))
+                              edges-with-labels))
 
-            max-x (if (seq all-new-points) (apply max (map :x all-new-points)) width)
-            max-y (if (seq all-new-points) (apply max (map :y all-new-points)) height)]
+        swimlanes-shifted (if (and (zero? shift-x) (zero? shift-y))
+                            swimlanes
+                            (mapv (fn [n]
+                                    (if (and (number? (:x n)) (number? (:y n)))
+                                      (assoc n :x (+ (:x n) shift-x) :y (+ (:y n) shift-y))
+                                      n))
+                                  swimlanes))
 
-        (assoc layout-result
-               :nodes new-nodes
-               :edges new-edges
-               :swimlanes new-swimlanes
-               :width (+ max-x padding)
-               :height (+ max-y padding))))))
+        ;; 基于偏移后的实体重新计算画布尺寸
+        all-shifted-points (if (and (zero? shift-x) (zero? shift-y))
+                             all-points ;; Optimization: if no shift, points are same
+                             (let [;; Need to shift the points we calculated earlier
+                                   shift-pt (fn [p] {:x (+ (:x p) shift-x) :y (+ (:y p) shift-y)})]
+                               (map shift-pt all-points)))
+
+        max-x (if (seq all-shifted-points) (apply max (map :x all-shifted-points)) width)
+        max-y (if (seq all-shifted-points) (apply max (map :y all-shifted-points)) height)]
+
+    (assoc layout-result
+           :nodes nodes-shifted
+           :edges edges-shifted
+           :swimlanes swimlanes-shifted
+           :width (+ max-x padding)
+           :height (+ max-y padding))))
+
+(defn- apply-layout-rules [nodes]
+  (let [rules (rule/load-rules)
+        layout-rules (rule/get-layout-rules (:rules rules))]
+    (mapv (fn [node]
+            (let [matched-rule (rule/get-matching-rule layout-rules {} node)]
+              (merge node matched-rule)))
+          nodes)))
 
 (defn layout [nodes edges pools options]
   (let [layout-mode (:layout options)
+        ;; Apply layout rules (ports, sizing, etc.) before any processing
+        nodes-with-rules (apply-layout-rules nodes)
+
         routing-mode (:routing options "manhattan")
         route-fn (case routing-mode
                    "spline" spline/route-edges
                    "ortho" ortho/route-edges
                    "architecture" architecture/route-edges
                    manhattan/route-edges)
-        sized-nodes (mapv coerce-node-size nodes)
+        sized-nodes (mapv coerce-node-size nodes-with-rules) ;; Use nodes with rules
         hidden-edge? (fn [e]
                        (let [t (:type e)
                              hidden (:hidden e)]

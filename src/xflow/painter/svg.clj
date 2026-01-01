@@ -35,6 +35,8 @@
    "cpu" "⚙️"
    "code" "💻"})
 
+(declare curve-path)
+
 (defn- rounded-path [points radius]
   (if (< (count points) 3)
     ;; Fallback for simple lines
@@ -78,20 +80,88 @@
 
       (str/join " " @path-cmds))))
 
+(defn- basis-spline-path [points]
+  (if (< (count points) 3)
+    (curve-path points) ;; Fallback to simple curve for short paths
+
+    (let [;; Duplicate start and end points to clamp the curve
+          pts (vec (concat [(first points)] points [(last points)]))
+          n (count pts)
+
+          ;; Start path at first point
+          start (nth pts 1) ;; Original first point
+          path-cmds (atom [(str "M" (:x start) "," (:y start))])]
+
+      ;; Iterate through windows of 4 points to generate segments
+      ;; B-Spline segment uses points i, i+1, i+2, i+3
+      ;; We iterate from 0 to n-4
+      (dotimes [i (- n 3)]
+        (let [p0 (nth pts i)
+              p1 (nth pts (inc i))
+              p2 (nth pts (+ i 2))
+              p3 (nth pts (+ i 3))
+
+              ;; B-Spline Basis Matrix to Bezier Control Points
+              ;; S = (P0 + 4P1 + P2) / 6
+              ;; C1 = (2P1 + P2) / 3   <- Wait, this is relative to segment
+              ;; Actually, the segment defined by P0..P3 goes from S to E
+              ;; where S is near P1 and E is near P2.
+              ;; 
+              ;; Correct Bezier Control Points for segment i:
+              ;; Start point S: (1/6)P0 + (2/3)P1 + (1/6)P2
+              ;; End point E:   (1/6)P1 + (2/3)P2 + (1/6)P3
+              ;; Ctrl 1:        (2/3)P1 + (1/3)P2
+              ;; Ctrl 2:        (1/3)P1 + (2/3)P2
+
+              x1 (+ (* (/ 1.0 6.0) (:x p0)) (* (/ 2.0 3.0) (:x p1)) (* (/ 1.0 6.0) (:x p2)))
+              y1 (+ (* (/ 1.0 6.0) (:y p0)) (* (/ 2.0 3.0) (:y p1)) (* (/ 1.0 6.0) (:y p2)))
+
+              x2 (+ (* (/ 1.0 6.0) (:x p1)) (* (/ 2.0 3.0) (:x p2)) (* (/ 1.0 6.0) (:x p3)))
+              y2 (+ (* (/ 1.0 6.0) (:y p1)) (* (/ 2.0 3.0) (:y p2)) (* (/ 1.0 6.0) (:y p3)))
+
+              cp1-x (+ (* (/ 2.0 3.0) (:x p1)) (* (/ 1.0 3.0) (:x p2)))
+              cp1-y (+ (* (/ 2.0 3.0) (:y p1)) (* (/ 1.0 3.0) (:y p2)))
+
+              cp2-x (+ (* (/ 1.0 3.0) (:x p1)) (* (/ 2.0 3.0) (:x p2)))
+              cp2-y (+ (* (/ 1.0 3.0) (:y p1)) (* (/ 2.0 3.0) (:y p2)))]
+
+          ;; For the first segment (i=0), the start point x1,y1 should be exactly P1 (original start)
+          ;; Because we duplicated P0=P1, calculation:
+          ;; S = 1/6 P1 + 2/3 P1 + 1/6 P2 = 5/6 P1 + 1/6 P2. Not exactly P1.
+          ;; Standard Basis Spline doesn't hit control points.
+          ;; But if we triple the end points, it does.
+          ;; Let's try tripling start/end in `pts` definition.
+
+          ;; If we just use L for start/end segments?
+          ;; Or just accept the standard Basis Spline approximation.
+          ;; Let's use the calculated points.
+
+          ;; Note: We need to Move to start of first segment if not already there?
+          ;; The SVG path is continuous.
+          (if (zero? i)
+            (swap! path-cmds conj (str "L" x1 "," y1))) ;; Connect from M(original) to S(spline start)
+
+          (swap! path-cmds conj (str "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " x2 "," y2))))
+
+      ;; Connect to final point
+      (let [end (last points)]
+        (swap! path-cmds conj (str "L" (:x end) "," (:y end))))
+
+      (str/join " " @path-cmds))))
+
 (defn- curve-path [points]
   (let [pts (vec points)
         n (count pts)]
     (cond
-      (< n 2)
-      ""
-
+      (< n 2) ""
       (= n 2)
+      ;; Use optimized S-curve for direct connections
       (let [p0 (nth pts 0)
             p1 (nth pts 1)
             dx (- (:x p1) (:x p0))
             dy (- (:y p1) (:y p0))
-            vertical? (>= (Math/abs dy) (Math/abs dx))
-            pull (double (min 90.0 (* 0.5 (if vertical? (Math/abs dy) (Math/abs dx)))))
+            vertical? (>= (Math/abs (double dy)) (Math/abs (double dx)))
+            pull (double (min 80.0 (* 0.4 (if vertical? (Math/abs (double dy)) (Math/abs (double dx))))))
             sgn (fn [v] (if (neg? v) -1.0 1.0))
             [cp1-x cp1-y cp2-x cp2-y]
             (if vertical?
@@ -103,22 +173,18 @@
              "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " (:x p1) "," (:y p1)))
 
       :else
-      (let [tension 1.0
-            cmds (transient [(str "M" (:x (nth pts 0)) "," (:y (nth pts 0)))])]
-        (loop [i 0
-               cmds cmds]
-          (if (= i (dec n))
-            (str/join " " (persistent! cmds))
-            (let [p0 (nth pts (max 0 (dec i)))
-                  p1 (nth pts i)
-                  p2 (nth pts (inc i))
-                  p3 (nth pts (min (dec n) (+ i 2)))
-                  cp1-x (+ (:x p1) (* (/ tension 6.0) (- (:x p2) (:x p0))))
-                  cp1-y (+ (:y p1) (* (/ tension 6.0) (- (:y p2) (:y p0))))
-                  cp2-x (- (:x p2) (* (/ tension 6.0) (- (:x p3) (:x p1))))
-                  cp2-y (- (:y p2) (* (/ tension 6.0) (- (:y p3) (:y p1))))
-                  cmds (conj! cmds (str "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " (:x p2) "," (:y p2)))]
-              (recur (inc i) cmds))))))))
+      ;; Use Basis Spline for multi-point paths (Mermaid style)
+      ;; But first check if it's an Orthogonal path (Manhattan)
+      ;; Orthogonal paths look better with Rounded Corners.
+      ;; Non-orthogonal (Sugiyama) paths look better with Basis Spline.
+      (let [is-ortho? (every? (fn [i]
+                                (let [p1 (nth pts i)
+                                      p2 (nth pts (inc i))]
+                                  (or (= (:x p1) (:x p2)) (= (:y p1) (:y p2)))))
+                              (range (dec n)))]
+        (if is-ortho?
+          (rounded-path points 20)
+          (basis-spline-path points))))))
 
 (defn- strip-quotes [s]
   (if (string? s)
@@ -179,7 +245,8 @@
             (let [shape (or (-> n :props :shape) "rect")
                   bg-color (or (-> n :props :fill) (-> n :props :color) "white")
                   stroke-color (or (-> n :props :stroke) "#333")
-                  w (:w n) h (:h n)
+                  w (or (:w n) 100)
+                  h (or (:h n) 50)
                   cx (+ (:x n) (/ w 2))
                   cy (+ (:y n) (/ h 2))
                   icon-key (-> n :props :icon)
@@ -299,4 +366,3 @@
 
       (for [n atomic-nodes]
         (render-node n {:shadow? true}))]]))
-

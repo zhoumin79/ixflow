@@ -1,16 +1,40 @@
 {:rules
- {:task {:default {[:completed :any] {:shape :default}}},
+ {:task {:default {[:completed :any] {:shape :default}}}
   :swimlane
   {:pool-header
    {[:pool-idx :any]
-    {:header {:fill-color [:pool-colors :mod-pool-idx]}}},
+    {:header {:fill-color [:pool-colors :mod-pool-idx]}}}
    :lane-header
    {[:lane-idx :any]
-    {:header {:fill-color [:lane-colors :mod-lane-idx]}}},
+    {:header {:fill-color [:lane-colors :mod-lane-idx]}}}
    :lane-task
    {[:lane-idx :any]
-    {:task {:fill-color [:lane-colors :mod-lane-idx]}}},
+    {:task {:fill-color [:lane-colors :mod-lane-idx]}}}
    :pool-task
    {[:pool-idx :any]
-    {:task {:fill-color [:pool-colors :mod-pool-idx]}}},
-   :default {[:pool-idx :any] {:header {:fill-color :default}}}}}}
+    {:task {:fill-color [:pool-colors :mod-pool-idx]}}}
+   :default {[:pool-idx :any] {:header {:fill-color :default}}}}
+
+  :layout
+  {:default
+   {[:any]
+    {:ports {:in [:top :left] :out [:bottom :right]}
+     :routing {:type :manhattan}}}
+
+   :gateway
+   {[:type :gateway]
+    {:ports {:in [:top] :out [:left :right :bottom]}
+     :shape :diamond
+     :sizing {:fixed-ratio 1.0}}}
+
+   :start-event
+   {[:type :start]
+    {:ports {:out [:bottom :right]}
+     :shape :circle
+     :sizing {:w 40 :h 40}}}
+
+   :end-event
+   {[:type :end]
+    {:ports {:in [:top :left]}
+     :shape :double-circle
+     :sizing {:w 40 :h 40}}}}}}

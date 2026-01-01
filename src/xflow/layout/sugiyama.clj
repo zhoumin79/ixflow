@@ -1,34 +1,21 @@
 (ns xflow.layout.sugiyama
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [xflow.layout.layering.network-simplex :as network-simplex]
+            [xflow.layout.coordinate :as coordinate]))
 
 (defn- get-roots [nodes edges]
   (let [targets (set (map :to edges))]
     (filter #(not (contains? targets (:id %))) nodes)))
 
+;; --- 分层 (Layering) ---
+;; 使用 Network Simplex 算法进行分层，这是目前最先进的分层算法之一。
+;; 它的目标是减少边的长度总和，从而使图形更加紧凑。
 (defn assign-ranks [nodes edges]
-  ;; Simple Longest Path layering
-  (let [node-map (group-by :id nodes)
-        adj (reduce (fn [m e] (update m (:from e) (fnil conj []) (:to e))) {} edges)
-        ranks (atom {})
-        visited-global (atom #{})]
+  (network-simplex/assign-ranks nodes edges))
 
-    (letfn [(visit [node-id depth visited]
-              (when-not (contains? visited node-id) ;; Cycle detection within path
-                (swap! ranks update node-id #(max (or % 0) depth))
-                (swap! visited-global conj node-id)
-                (doseq [child (get adj node-id)]
-                  (visit child (inc depth) (conj visited node-id)))))]
-
-      (let [roots (get-roots nodes edges)]
-        (doseq [root (if (seq roots) roots nodes)] ;; If no roots (cycle), start anywhere
-          ;; Only process if not already visited (avoids infinite rank increment in cycles)
-          (when-not (contains? @visited-global (:id root))
-            (visit (:id root) 0 #{})))))
-
-    ;; Assign rank to node objects
-    (map (fn [n] (assoc n :rank (get @ranks (:id n) 0))) nodes)))
-
-;; --- Crossing Minimization (Barycenter Method) ---
+;; --- 交叉最小化 (Crossing Minimization) ---
+;; 使用重心法 (Barycenter Method) 结合扫描线 (Sweep-Line) 算法。
+;; 通过迭代调整每一层的节点顺序，尽量减少边与边的交叉。
 
 (defn- build-adj-matrix [nodes edges]
   (let [node-ids (set (map :id nodes))
@@ -58,7 +45,7 @@
         {:keys [parents children]} (build-adj-matrix nodes edges)
         iterations 8] ;; Standard number of iterations
 
-    ;; Initial random order (just preserve list order from group-by, but assign index)
+    ;; 初始随机顺序 (Initial random order)
     (loop [iter 0
            current-ranks ranks
            ;; Build initial order-map: {node-id -> index}
@@ -66,14 +53,15 @@
                                         (map-indexed (fn [i n] [(:id n) i]) layer))
                                       ranks))]
       (if (>= iter iterations)
-        ;; Done: Assign final :order to nodes
+        ;; 完成: 分配最终的 order 属性
         (flatten
          (map (fn [[r layer]]
                 (map-indexed (fn [i n] (assoc n :order i)) layer))
               current-ranks))
 
-        ;; Sweep
-        (let [;; Down sweep (Rank 1 -> Max)
+        ;; 扫描 (Sweep)
+        (let [;; 下行扫描 (Down sweep): Rank 1 -> Max
+              ;; 根据上一层(parents)的重心调整当前层
               [down-ranks down-order-map]
               (reduce
                (fn [[rs om] r]
@@ -86,7 +74,8 @@
                [current-ranks order-map]
                (range 1 (inc max-rank)))
 
-              ;; Up sweep (Rank Max-1 -> 0)
+              ;; 上行扫描 (Up sweep): Rank Max-1 -> 0
+              ;; 根据下一层(children)的重心调整当前层
               [up-ranks up-order-map]
               (reduce
                (fn [[rs om] r]
@@ -100,7 +89,9 @@
 
           (recur (inc iter) up-ranks up-order-map))))))
 
-;; --- Coordinate Assignment (Median Heuristic) ---
+;; --- 坐标分配 (Coordinate Assignment) ---
+;; 处理长边 (Long Edges) 的虚拟节点插入。
+;; 真正的坐标分配逻辑委托给 coordinate 命名空间，使用 Brandes-Köpf 或类似的高级对齐算法。
 
 (defn insert-dummy-nodes [nodes edges]
   (let [nodes-map (into {} (map (fn [n] [(:id n) n]) nodes))
@@ -174,57 +165,62 @@
              edge))
          original-edges)))
 
-(defn assign-coordinates [ordered-nodes edges options]
-  (let [direction (name (:direction options "tb")) ;; Ensure string
-        vertical? (contains? #{"tb" "bt" "vertical"} direction) ;; Support bt/vertical
-        reverse-rank? (= direction "bt")
-        reverse-align? (= direction "rl")
+(defn- swap-node-dims [nodes]
+  (map (fn [n] (assoc n :w (:h n) :h (:w n))) nodes))
 
-        ;; Config
-        default-w 180
-        default-h 50
-        gap-x 50
-        gap-y 80
+(defn- swap-coords [nodes]
+  (map (fn [n] (assoc n :x (:y n) :y (:x n))) nodes))
 
-        ;; Dimensions based on direction
-        ;; Note: We can't use fixed w/h anymore if nodes vary in size
-        sep-in-rank (if vertical? gap-x gap-y)
-        sep-across-rank (if vertical? gap-y gap-x)
-
-        ;; Group by rank
-        ranks (group-by :rank ordered-nodes)
-        max-rank (if (seq ranks) (apply max (keys ranks)) 0)
-
-        nodes-map (into {} (map (fn [n] [(:id n) n]) ordered-nodes))
-
-        coords (atom {})]))
-
-    ;; 1. Place Rank 0 (Roots)
+(defn- swap-edge-points [edges]
+  (map (fn [e]
+         (if (:points e)
+           (update e :points (fn [pts] (mapv (fn [p] {:x (:y p) :y (:x p)}) pts)))
+           e))
+       edges))
 
 (defn layout-graph [nodes edges options]
-  (let [ranked-nodes (assign-ranks nodes edges)
+  (let [direction (get options :direction :TB) ;; 默认为自上而下 (Top-Bottom)
+        is-horizontal? (or (= direction :LR) (= direction :RL)) ;; 目前支持 LR, 将来可支持 RL
+
+        ;; 1. 预处理: 如果是水平布局，交换节点的宽高
+        ;; Pre-processing: Swap width/height for horizontal layout
+        nodes-for-layout (if is-horizontal?
+                           (swap-node-dims nodes)
+                           nodes)
+
+        ;; 2. 执行标准 Sugiyama 布局 (默认 Top-Bottom)
+        ;; Execute standard Sugiyama layout
+        ;; 2.1 分层 (Layering)
+        ranked-nodes (assign-ranks nodes-for-layout edges)
+
+        ;; 2.2 插入虚拟节点 (Insert Dummy Nodes)
         {:keys [nodes dummies] :as graph-with-dummies} (insert-dummy-nodes ranked-nodes edges)
 
-        ;; Use standard ordering
-        ;; FIX: Use nodes from graph-with-dummies which includes dummy nodes!
+        ;; 2.3 节点排序 (Node Ordering)
         ordered-nodes (order-nodes (:nodes graph-with-dummies) (:edges graph-with-dummies))
 
-        ;; Assign coordinates
-        nodes-with-coords (assign-coordinates ordered-nodes (:edges graph-with-dummies) options)
+        ;; 2.4 坐标分配 (Coordinate Assignment)
+        coord-result (coordinate/assign-coordinates ordered-nodes (:edges graph-with-dummies) options)
+        nodes-with-coords (:nodes coord-result)
 
-        ;; Apply edge points
+        ;; 2.5 边路由点计算 (Edge Routing Points)
         edges-with-points (apply-edge-points edges nodes-with-coords)
 
-        ;; Filter real nodes
+        ;; 2.6 清理虚拟节点
         final-nodes (remove :dummy? nodes-with-coords)
 
-        ;; Calculate dimensions
-        min-x (if (seq final-nodes) (apply min (map :x final-nodes)) 0)
-        min-y (if (seq final-nodes) (apply min (map :y final-nodes)) 0)
-        max-x (if (seq final-nodes) (apply max (map #(+ (:x %) (:w %)) final-nodes)) 0)
-        max-y (if (seq final-nodes) (apply max (map #(+ (:y %) (:h %)) final-nodes)) 0)]
+        ;; 获取布局尺寸
+        layout-w (:width coord-result)
+        layout-h (:height coord-result)]
 
-    {:nodes final-nodes
-     :edges edges-with-points
-     :width (- max-x min-x)
-     :height (- max-y min-y)}))
+    ;; 3. 后处理: 如果是水平布局，交换坐标 X/Y 和 布局宽/高
+    ;; Post-processing: Swap X/Y and Width/Height for horizontal layout
+    (if is-horizontal?
+      {:nodes (swap-coords final-nodes)
+       :edges (swap-edge-points edges-with-points)
+       :width layout-h
+       :height layout-w}
+      {:nodes final-nodes
+       :edges edges-with-points
+       :width layout-w
+       :height layout-h})))

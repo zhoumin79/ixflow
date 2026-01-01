@@ -23,4 +23,5 @@
         (is (.exists (io/file output-file)) (str "Output file should exist: " output-file))
         (is (> (.length (io/file output-file)) 0) (str "Output file should not be empty: " output-file))))))
 
-(batch-render-templates)
+(defn -main [& args]
+  (batch-render-templates))

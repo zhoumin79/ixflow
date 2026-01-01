@@ -16,12 +16,14 @@
                (<= x1 (+ nx nw))
                (or (and (>= y1 ny) (<= y1 (+ ny nh)))
                    (and (>= y2 ny) (<= y2 (+ ny nh)))
-                   (and (<= y1 ny) (>= y2 (+ ny nh)))))
+                   ;; Spanning check: handles both y1 < y2 and y1 > y2
+                   (and (<= (min y1 y2) ny) (>= (max y1 y2) (+ ny nh)))))
           (and (>= y1 ny)
                (<= y1 (+ ny nh))
                (or (and (>= x1 nx) (<= x1 (+ nx nw)))
                    (and (>= x2 nx) (<= x2 (+ nx nw)))
-                   (and (<= x1 nx) (>= x2 (+ nx nw)))))))
+                   ;; Spanning check: handles both x1 < x2 and x1 > x2
+                   (and (<= (min x1 x2) nx) (>= (max x1 x2) (+ nx nw)))))))
       false)))
 
 (defn- find-safe-mid [p1 p2 nodes mode]
@@ -38,19 +40,12 @@
       start-mid
       (loop [offset 20]
         (if (> offset 200)
-          (do
-            (when (and (= seg-min 20.0) (= seg-max 275.0))
-              (println "DEBUG: find-safe-mid gave up for" p1 p2 "start-mid" start-mid))
-            start-mid)
+          start-mid
           (let [try-pos (+ start-mid offset)
                 try-neg (- start-mid offset)]
             (cond
               (not (check try-pos)) try-pos
-              (not (check try-neg))
-              (do
-                (when (and (= seg-min 20.0) (= seg-max 275.0))
-                  (println "DEBUG: find-safe-mid FOUND" try-neg))
-                try-neg)
+              (not (check try-neg)) try-neg
               :else (recur (+ offset 20)))))))))
 
 (defn- find-safe-channel [p1 p2 nodes mode side]
@@ -61,18 +56,30 @@
   (let [vertical? (not= mode "horizontal")
 
         ;; Determine coordinate accessors and search direction
-        val-fn (if vertical? :x :y)
-        min-fn min
-        max-fn max
+        ;; Scan ALL nodes to find the true boundary to avoid cutting through wider nodes
+        all-bounds (map (fn [n]
+                          (case side
+                            :right (+ (double (:x n)) (double (:w n)))
+                            :left (double (:x n))
+                            :bottom (+ (double (:y n)) (double (:h n)))
+                            :top (double (:y n))))
+                        nodes)
+
+        limit-val (if (seq all-bounds)
+                    (case side
+                      :right (apply max all-bounds)
+                      :left (apply min all-bounds)
+                      :bottom (apply max all-bounds)
+                      :top (apply min all-bounds))
+                    0)
 
         ;; Base coordinate to start searching from
-        ;; For Left/Top: min - 30
-        ;; For Right/Bottom: max + 30
+        ;; Increased padding to 40 for better aesthetics
         start-val (case side
-                    :left (- (min (:x p1) (:x p2)) 30)
-                    :right (+ (max (+ (:x p1) (:w p1 0)) (+ (:x p2) (:w p2 0))) 30)
-                    :top (- (min (:y p1) (:y p2)) 30)
-                    :bottom (+ (max (+ (:y p1) (:h p1 0)) (+ (:y p2) (:h p2 0))) 30)
+                    :left (- limit-val 40)
+                    :right (+ limit-val 40)
+                    :top (- limit-val 40)
+                    :bottom (+ limit-val 40)
                     0)
 
         ;; Segment bounds (orthogonal to search direction)
@@ -149,87 +156,100 @@
       valid-safe? pts-safe
       :else pts-loop)))
 
+(defn- get-port-point [node side]
+  (let [x (double (or (:x node) 0.0))
+        y (double (or (:y node) 0.0))
+        w (double (or (:w node) 0.0))
+        h (double (or (:h node) 0.0))
+        cx (+ x (/ w 2.0))
+        cy (+ y (/ h 2.0))]
+    (case side
+      :top {:x cx :y y}
+      :bottom {:x cx :y (+ y h)}
+      :left {:x x :y cy}
+      :right {:x (+ x w) :y cy}
+      {:x cx :y cy})))
+
+(defn- get-best-port [node allowed-sides target-node]
+  (if (empty? allowed-sides)
+    nil
+    (let [tx (double (or (:x target-node) 0.0))
+          tw (double (or (:w target-node) 0.0))
+          ty (double (or (:y target-node) 0.0))
+          th (double (or (:h target-node) 0.0))
+          target-point {:x (+ tx (/ tw 2.0))
+                        :y (+ ty (/ th 2.0))}
+          dist-sq (fn [p1 p2]
+                    (+ (Math/pow (- (:x p1) (:x p2)) 2)
+                       (Math/pow (- (:y p1) (:y p2)) 2)))
+          candidates (map (fn [side] {:side side :point (get-port-point node side)}) allowed-sides)]
+      (:point (apply min-key #(dist-sq (:point %) target-point) candidates)))))
+
 (defn select-ports [n1 n2 mode]
-  (let [vertical? (not= mode "horizontal")
-        margin 20
-        x1 (double (or (:x n1) 0.0))
-        y1 (double (or (:y n1) 0.0))
-        w1 (double (or (:w n1) 0.0))
-        h1 (double (or (:h n1) 0.0))
-        x2 (double (or (:x n2) 0.0))
-        y2 (double (or (:y n2) 0.0))
-        w2 (double (or (:w n2) 0.0))
-        h2 (double (or (:h n2) 0.0))
-        res (if vertical?
-              (let [s-bottom (+ y1 h1)
-                    t-top y2
-                    enough-vertical? (> t-top (+ s-bottom margin))]
-                (if enough-vertical?
-                  {:p1 {:x (+ x1 (/ w1 2.0)) :y s-bottom}
-                   :p2 {:x (+ x2 (/ w2 2.0)) :y t-top}
-                   :strategy :standard}
-                  (let [s-right (+ x1 w1)
-                        t-left x2
-                        s-left x1
-                        t-right (+ x2 w2)]
-                    (cond
-                      (> t-left (+ s-right margin))
-                      {:p1 {:x s-right :y (+ y1 (/ h1 2.0))}
-                       :p2 {:x t-left :y (+ y2 (/ h2 2.0))}
-                       :strategy :direct-horizontal}
+  (let [vertical? (= mode "vertical")
+        n1-pos (if vertical? (:y n1) (:x n1))
+        n2-pos (if vertical? (:y n2) (:x n2))
+        reversed? (> n1-pos n2-pos) ;; Back edge check
 
-                      (> s-left (+ t-right margin))
-                      {:p1 {:x s-left :y (+ y1 (/ h1 2.0))}
-                       :p2 {:x t-right :y (+ y2 (/ h2 2.0))}
-                       :strategy :direct-horizontal}
+        n1-ports (get-in n1 [:ports :out])
+        n2-ports-in (get-in n2 [:ports :in])
+        n2-ports-out (get-in n2 [:ports :out])
 
-                      :else
-                      (let [cx1 (+ x1 (/ w1 2.0))
-                            cx2 (+ x2 (/ w2 2.0))
-                            side (if (> cx1 cx2) :right :left)]
-                        {:p1 (if (= side :left)
-                               {:x x1 :y (+ y1 (/ h1 2.0))}
-                               {:x (+ x1 w1) :y (+ y1 (/ h1 2.0))})
-                         :p2 (if (= side :left)
-                               {:x x2 :y (+ y2 (/ h2 2.0))}
-                               {:x (+ x2 w2) :y (+ y2 (/ h2 2.0))})
-                         :strategy :side-loop
-                         :side side})))))
-              (let [s-right (+ x1 w1)
-                    t-left x2
-                    enough-horizontal? (> t-left (+ s-right margin))]
-                (if enough-horizontal?
-                  {:p1 {:x s-right :y (+ y1 (/ h1 2.0))}
-                   :p2 {:x t-left :y (+ y2 (/ h2 2.0))}
-                   :strategy :standard}
-                  (let [s-bottom (+ y1 h1)
-                        t-top y2
-                        s-top y1
-                        t-bottom (+ y2 h2)]
-                    (cond
-                      (> t-top (+ s-bottom margin))
-                      {:p1 {:x (+ x1 (/ w1 2.0)) :y s-bottom}
-                       :p2 {:x (+ x2 (/ w2 2.0)) :y t-top}
-                       :strategy :direct-vertical}
+        ;; Determine preferred side for back-edge (Right for TB, Bottom for LR)
+        loop-side (if vertical? :right :bottom)
+        ;; Determine "end" side (Top for TB, Left for LR) - often compatible with loop
+        end-side (if vertical? :top :left)
 
-                      (> s-top (+ t-bottom margin))
-                      {:p1 {:x (+ x1 (/ w1 2.0)) :y s-top}
-                       :p2 {:x (+ x2 (/ w2 2.0)) :y t-bottom}
-                       :strategy :direct-vertical}
+        ;; Allow using loop-side (e.g. Right) as input for back-edges IF it's an existing port (even if Output)
+        ;; This enables the cleaner "Right -> Right" C-shape loop.
+        n2-ports (if reversed?
+                   (cond
+                     (and (seq n2-ports-out) (contains? (set n2-ports-out) loop-side))
+                     (vec (conj (or n2-ports-in []) loop-side))
+                     :else n2-ports-in)
+                   n2-ports-in)
 
-                      :else
-                      (let [cy1 (+ y1 (/ h1 2.0))
-                            cy2 (+ y2 (/ h2 2.0))
-                            side (if (> cy1 cy2) :bottom :top)]
-                        {:p1 (if (= side :top)
-                               {:x (+ x1 (/ w1 2.0)) :y y1}
-                               {:x (+ x1 (/ w1 2.0)) :y (+ y1 h1)})
-                         :p2 (if (= side :top)
-                               {:x (+ x2 (/ w2 2.0)) :y y2}
-                               {:x (+ x2 (/ w2 2.0)) :y (+ y2 h2)})
-                         :strategy :side-loop
-                         :side side}))))))]
-    res))
+        ;; Check if ports allow this side
+        n1-loop-allowed? (or (empty? n1-ports) (contains? (set n1-ports) loop-side))
+
+        ;; For target node, we allow loop-side OR end-side (since we can route from loop channel to end side)
+        n2-loop-allowed? (or (empty? n2-ports)
+                             (contains? (set n2-ports) loop-side)
+                             (contains? (set n2-ports) end-side))
+
+        ;; Force loop if it's a back edge AND ports allow it
+        should-loop? (and reversed? n1-loop-allowed? n2-loop-allowed?)
+
+        p1 (when (seq n1-ports) (get-best-port n1 n1-ports n2))
+        p2 (when (seq n2-ports) (get-best-port n2 n2-ports n1))]
+
+    (if (and (or p1 p2) (not should-loop?))
+      (let [;; Use constrained port if available, otherwise calculate center/default
+            final-p1 (or p1 (get-port-point n1 (if (= mode "vertical") :bottom :right)))
+            final-p2 (or p2 (get-port-point n2 (if (= mode "vertical") :top :left)))]
+        {:p1 final-p1
+         :p2 final-p2
+         :strategy :constrained})
+
+      ;; Original Logic Fallback / Forced Loop
+      (if reversed?
+        (let [side (if (and n1-loop-allowed? n2-loop-allowed?) loop-side (if vertical? :right :bottom))
+              ;; For p1, we prefer the loop side
+              p1 (if (and (seq n1-ports) (not (contains? (set n1-ports) side)))
+                   (get-best-port n1 n1-ports {:x (if vertical? 100000 (:x n1)) :y (if vertical? (:y n1) 100000)}) ;; Mock target far away
+                   (get-port-point n1 side))
+
+              ;; For p2, we prefer loop side, but accept end-side if loop-side is forbidden
+              p2 (if (and (seq n2-ports) (not (contains? (set n2-ports) side)))
+                   ;; If side is forbidden, try end-side (Top/Left)
+                   (if (contains? (set n2-ports) end-side)
+                     (get-port-point n2 end-side)
+                     ;; If neither, use whatever is best?
+                     (get-best-port n2 n2-ports {:x (if vertical? 100000 (:x n2)) :y (if vertical? (:y n2) 100000)}))
+                   (get-port-point n2 side))]
+          {:p1 p1 :p2 p2 :strategy :side-loop :side side})
+        (let [p1 (get-port-point n1 (if vertical? :bottom :right))
+              p2 (get-port-point n2 (if vertical? :top :left))] \n {:p1 p1 :p2 p2 :strategy :direct})))))
 
 (defn- collinear? [p1 p2 p3]
   (let [x1 (:x p1) y1 (:y p1)
@@ -269,176 +289,143 @@
        vec
        simplify-path))
 
-(defn- simple-path? [points mode]
-  (if (< (count points) 3)
-    true
-    (let [vertical? (not= mode "horizontal")
-          m1 (second points)
-          m2 (nth points 2)]
-      (if vertical?
-        (= (:y m1) (:y m2)) ;; Horizontal middle segment in Vertical mode
-        (= (:x m1) (:x m2)))))) ;; Vertical middle segment in Horizontal mode
+(defn- get-smart-ports [n1 n2 waypoints mode]
+  (let [vertical? (not= mode "horizontal")
+        ;; Get allowed ports from node props/rules
+        n1-allowed (set (or (get-in n1 [:ports :out])
+                            (if vertical? [:bottom :right] [:right :bottom])))
+        n2-allowed (set (or (get-in n2 [:ports :in])
+                            (if vertical? [:top :left] [:left :top])))
+
+        allowed? (fn [ports side] (contains? ports side))
+
+        wp-xs (map :x waypoints)
+        wp-ys (map :y waypoints)
+        avg-wp-x (/ (reduce + wp-xs) (count wp-xs))
+        avg-wp-y (/ (reduce + wp-ys) (count wp-ys))]
+
+    (if vertical?
+      ;; Vertical Mode
+      (let [n1-right (+ (:x n1) (:w n1))
+            n2-right (+ (:x n2) (:w n2))
+            n1-left (:x n1)
+            n2-left (:x n2)
+            n1-cy (+ (:y n1) (/ (:h n1) 2))
+            n2-cy (+ (:y n2) (/ (:h n2) 2))
+
+            right-side? (and (> avg-wp-x n1-right) (> avg-wp-x n2-right))
+            left-side? (and (< avg-wp-x n1-left) (< avg-wp-x n2-left))
+
+            p1-side (cond
+                      (and right-side? (allowed? n1-allowed :right)) :right
+                      (and left-side? (allowed? n1-allowed :left)) :left
+                      :else nil)
+
+            p2-side (cond
+                      (and right-side? (allowed? n2-allowed :right)) :right
+                      (and left-side? (allowed? n2-allowed :left)) :left
+                      :else nil)]
+
+        (when (or p1-side p2-side)
+          {:p1 (if p1-side (get-port-point n1 p1-side) nil)
+           :p2 (if p2-side (get-port-point n2 p2-side) nil)}))
+
+      ;; Horizontal Mode
+      (let [n1-bottom (+ (:y n1) (:h n1))
+            n2-bottom (+ (:y n2) (:h n2))
+            n1-top (:y n1)
+            n2-top (:y n2)
+            n1-cx (+ (:x n1) (/ (:w n1) 2))
+            n2-cx (+ (:x n2) (/ (:w n2) 2))
+
+            bottom-side? (and (> avg-wp-y n1-bottom) (> avg-wp-y n2-bottom))
+            top-side? (and (< avg-wp-y n1-top) (< avg-wp-y n2-top))
+
+            p1-side (cond
+                      (and bottom-side? (allowed? n1-allowed :bottom)) :bottom
+                      (and top-side? (allowed? n1-allowed :top)) :top
+                      :else nil)
+
+            p2-side (cond
+                      (and bottom-side? (allowed? n2-allowed :bottom)) :bottom
+                      (and top-side? (allowed? n2-allowed :top)) :top
+                      :else nil)]
+
+        (when (or p1-side p2-side)
+          {:p1 (if p1-side (get-port-point n1 p1-side) nil)
+           :p2 (if p2-side (get-port-point n2 p2-side) nil)})))))
+
+(defn- get-port-side [node point]
+  (let [x (:x point) y (:y point)
+        nx (:x node) ny (:y node)
+        nw (:w node) nh (:h node)
+        right (+ nx nw)
+        bottom (+ ny nh)
+        eps 1.0]
+    (cond
+      (< (Math/abs (- y ny)) eps) :top
+      (< (Math/abs (- y bottom)) eps) :bottom
+      (< (Math/abs (- x nx)) eps) :left
+      (< (Math/abs (- x right)) eps) :right
+      :else nil)))
+
+(defn- get-dock-point [point side]
+  (let [dist 20]
+    (case side
+      :top {:x (:x point) :y (- (:y point) dist)}
+      :bottom {:x (:x point) :y (+ (:y point) dist)}
+      :left {:x (- (:x point) dist) :y (:y point)}
+      :right {:x (+ (:x point) dist) :y (:y point)}
+      point)))
 
 (defn route-edges [layout options]
   (let [nodes (:nodes layout)
-        nodes-map (into {} (map (fn [n] [(:id n) n]) nodes))
-        ;; Determine mode:
-        ;; 1. If Layout is Swimlane, prioritize swimlane-mode (default horizontal)
-        ;; 2. Otherwise use direction (tb=vertical, lr=horizontal)
-        layout-type (:layout options)
-        direction (:direction options)
-        swimlane-mode (:swimlane-mode options "horizontal")
+        edges (:edges layout)
+        raw-mode (get options :direction "vertical")
+        mode (if (or (= raw-mode "vertical") (= raw-mode "tb") (= raw-mode :vertical) (= raw-mode :tb))
+               "vertical"
+               "horizontal")]
+    (assoc layout :edges
+           (mapv (fn [e]
+                   (let [src-id (or (:source e) (:from e))
+                         tgt-id (or (:target e) (:to e))
+                         n1 (some #(when (= (:id %) src-id) %) nodes)
+                         n2 (some #(when (= (:id %) tgt-id) %) nodes)]
+                     (if (and n1 n2)
+                       (let [port-info (select-ports n1 n2 mode)
+                             p1 (:p1 port-info)
+                             p2 (:p2 port-info)
+                             strategy (:strategy port-info)
+                             side (:side port-info)]
 
-        mode (cond
-               (= layout-type "swimlane")
-               (if (= swimlane-mode "vertical") "vertical" "horizontal")
+                         (cond
+                           (= strategy :side-loop)
+                           (let [p1-side (get-port-side n1 p1)
+                                 p2-side (get-port-side n2 p2)
+                                 p1-dock (get-dock-point p1 p1-side)
+                                 p2-dock (get-dock-point p2 p2-side)
+                                 channel (find-safe-channel p1 p2 nodes mode side)
+                                 vertical? (not= mode "horizontal")
+                                 points (if vertical?
+                                          ;; Vertical Side Loop
+                                          [p1
+                                           p1-dock
+                                           {:x channel :y (:y p1-dock)}
+                                           {:x channel :y (:y p2-dock)}
+                                           p2-dock
+                                           p2]
+                                          ;; Horizontal Side Loop
+                                          [p1
+                                           p1-dock
+                                           {:x (:x p1-dock) :y channel}
+                                           {:x (:x p2-dock) :y channel}
+                                           p2-dock
+                                           p2])]
+                             (assoc e :points (clean-points points) :p1 p1 :p2 p2 :strategy :side-loop :side side))
 
-               (= direction "tb") "vertical"
-               (= direction "lr") "horizontal"
-               :else "vertical")
+                           :else
+                           (let [points (route-segment p1 p2 nodes mode)]
+                             (assoc e :points (clean-points points) :p1 p1 :p2 p2 :strategy strategy))))
 
-        ;; Group edges by from node to handle branching overlaps
-        edges-by-from (group-by :from (:edges layout))]
-
-    (update layout :edges
-            (fn [_]
-              (into []
-                    (mapcat (fn [[_ siblings]]
-                              (let [edge-geoms
-                                    (map (fn [e]
-                                           (let [n1 (get nodes-map (:from e))
-                                                 n2 (get nodes-map (:to e))]
-                                             (if (and n1 n2)
-                                               (let [{:keys [p1 p2 strategy side]} (select-ports n1 n2 mode)]
-                                                 {:e e :p1 p1 :p2 p2 :strategy strategy :side side :valid true})
-                                               {:e e :valid false})))
-                                         siblings)
-
-                                    valid-geoms (filter :valid edge-geoms)
-
-                                    ;; --- 路径点路由 (处理 Dummy Nodes 产生的长连线) ---
-                                    waypoint-results
-                                    (keep (fn [geom]
-                                            (let [{:keys [e p1 p2]} geom]
-                                              (when (seq (:points e))
-                                                (let [waypoints (:points e)
-                                                      vertical? (not= mode "horizontal")
-                                                      preferred-side (if vertical? :right :bottom)
-                                                      channel (find-safe-channel p1 p2 nodes mode preferred-side)
-                                                      preferred-path (if vertical?
-                                                                       [p1 {:x channel :y (:y p1)} {:x channel :y (:y p2)} p2]
-                                                                       [p1 {:x (:x p1) :y channel} {:x (:x p2) :y channel} p2])
-                                                      preferred (clean-points preferred-path)
-                                                      ;; Try direct routing first to see if we can avoid zigzag
-                                                      direct-path (route-segment p1 p2 nodes mode)
-                                                      direct (clean-points direct-path)]
-
-                                                  (cond
-                                                    (path-valid? preferred nodes)
-                                                    (assoc e :points preferred)
-
-                                                    (path-valid? direct nodes)
-                                                    (assoc e :points direct)
-
-                                                    :else
-                                                    (let [full-path (concat [p1] waypoints [p2])
-                                                          final-points
-                                                          (loop [pts full-path
-                                                                 result []]
-                                                            (if (< (count pts) 2)
-                                                              result
-                                                              (let [curr (first pts)
-                                                                    next (second pts)
-                                                                    segment-pts (route-segment curr next nodes mode)]
-                                                                (recur (rest pts)
-                                                                       (into result (if (empty? result)
-                                                                                      segment-pts
-                                                                                      (rest segment-pts)))))))]
-                                                      (assoc e :points (clean-points final-points))))))))
-                                          valid-geoms)
-
-                                    ;; 过滤掉已通过 Waypoint 路由的边
-                                    remaining-geoms (remove (fn [g] (seq (:points (:e g)))) valid-geoms)
-
-                                    ;; --- 标准路由 (无中间点) ---
-                                    standard-geoms (filter #(= (:strategy %) :standard) remaining-geoms)
-                                    direct-horiz-geoms (filter #(= (:strategy %) :direct-horizontal) remaining-geoms)
-                                    direct-vert-geoms (filter #(= (:strategy %) :direct-vertical) remaining-geoms)
-                                    side-loop-geoms (filter #(= (:strategy %) :side-loop) remaining-geoms)
-
-                                    ;; --- Helper for Standard Routing ---
-                                    route-standard (fn [geoms routing-mode]
-                                                     (if (seq geoms)
-                                                       (let [mid-xs (map #(/ (+ (:x (:p1 %)) (:x (:p2 %))) 2) geoms)
-                                                             mid-ys (map #(/ (+ (:y (:p1 %)) (:y (:p2 %))) 2) geoms)
-                                                             avg-mid-x (/ (reduce + mid-xs) (count mid-xs))
-                                                             avg-mid-y (/ (reduce + mid-ys) (count mid-ys))
-
-                                                             bundle-min (if (= routing-mode "horizontal")
-                                                                          (apply min (map #(min (:y (:p1 %)) (:y (:p2 %))) geoms))
-                                                                          (apply min (map #(min (:x (:p1 %)) (:x (:p2 %))) geoms)))
-                                                             bundle-max (if (= routing-mode "horizontal")
-                                                                          (apply max (map #(max (:y (:p1 %)) (:y (:p2 %))) geoms))
-                                                                          (apply max (map #(max (:x (:p1 %)) (:x (:p2 %))) geoms)))
-
-                                                             safe-mid (if (= routing-mode "horizontal")
-                                                                        (find-safe-mid {:x avg-mid-x :y bundle-min} {:x avg-mid-x :y bundle-max} nodes routing-mode)
-                                                                        (find-safe-mid {:x bundle-min :y avg-mid-y} {:x bundle-max :y avg-mid-y} nodes routing-mode))]
-
-                                                         (map (fn [geom]
-                                                                (let [{:keys [e p1 p2]} geom]
-                                                                  (assoc e :points
-                                                                         (clean-points
-                                                                          (if (= routing-mode "horizontal")
-                                                                            [p1
-                                                                             {:x safe-mid :y (:y p1)}
-                                                                             {:x safe-mid :y (:y p2)}
-                                                                             p2]
-                                                                            [p1
-                                                                             {:x (:x p1) :y safe-mid}
-                                                                             {:x (:x p2) :y safe-mid}
-                                                                             p2])))))
-                                                              geoms))
-                                                       []))
-
-                                    standard-results (route-standard standard-geoms mode)
-                                    direct-horiz-results (route-standard direct-horiz-geoms "horizontal")
-                                    direct-vert-results (route-standard direct-vert-geoms "vertical")
-
-                                    ;; --- 侧边回环路由 (Side Loop Routing) - 用于回退边 ---
-                                    side-loop-results
-                                    (map (fn [geom]
-                                           (let [{:keys [e p1 p2 side]} geom
-                                                 channel (find-safe-channel p1 p2 nodes mode side)]
-                                             (assoc e :points
-                                                    (clean-points
-                                                     (if (not= mode "horizontal") ;; TB
-                                                       ;; TB Layout
-                                                       (if (= side :right)
-                                                          ;; Right Loop
-                                                         [p1
-                                                          {:x channel :y (:y p1)}
-                                                          {:x channel :y (:y p2)}
-                                                          p2]
-                                                          ;; Left Loop (Default)
-                                                         [p1
-                                                          {:x channel :y (:y p1)}
-                                                          {:x channel :y (:y p2)}
-                                                          p2])
-
-                                                       ;; LR Layout
-                                                       (if (= side :bottom)
-                                                          ;; Bottom Loop
-                                                         [p1
-                                                          {:x (:x p1) :y channel}
-                                                          {:x (:x p2) :y channel}
-                                                          p2]
-                                                          ;; Top Loop (Default)
-                                                         [p1
-                                                          {:x (:x p1) :y channel}
-                                                          {:x (:x p2) :y channel}
-                                                          p2]))))))
-                                         side-loop-geoms)]
-
-                                (concat waypoint-results standard-results direct-horiz-results direct-vert-results side-loop-results)))
-                            edges-by-from))))))
+                       e)))
+                 edges))))

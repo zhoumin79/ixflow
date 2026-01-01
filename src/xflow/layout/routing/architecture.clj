@@ -17,13 +17,15 @@
 (defn- distribute-points [start length fixed-coord count axis]
   "Returns a sequence of {:x ... :y ...} points distributed along a line.
    axis: :x (vary x, fixed y) or :y (vary y, fixed x)"
-  (let [step (double (/ length (inc count)))]
-    (map (fn [i]
-           (let [var-coord (double (+ start (* (inc i) step)))]
-             (if (= axis :x)
-               {:x var-coord :y (double fixed-coord)}
-               {:x (double fixed-coord) :y var-coord})))
-         (range count))))
+  (if (and (number? start) (number? length) (number? fixed-coord) (number? count) (pos? count))
+    (let [step (double (/ length (inc count)))]
+      (map (fn [i]
+             (let [var-coord (double (+ start (* (inc i) step)))]
+               (if (= axis :x)
+                 {:x var-coord :y (double fixed-coord)}
+                 {:x (double fixed-coord) :y var-coord})))
+           (range count)))
+    []))
 
 ;; --- Port Assignment ---
 
@@ -51,7 +53,8 @@
                     (:cx c)
                     0.0))
         node->col (into {}
-                        (map (fn [{:keys [id cx]}] \n [id (if (<= cx split-x) :left :right)])
+                        (map (fn [{:keys [id cx]}]
+                               [id (if (<= cx split-x) :left :right)])
                              centers))
         init-bounds {:min-x Double/POSITIVE_INFINITY
                      :max-x Double/NEGATIVE_INFINITY
@@ -166,7 +169,8 @@
         (reduce-kv
          (fn [acc node-id side-map]
            (let [node (get nodes-map node-id)]
-             (if (nil? node)
+             (if (or (nil? node)
+                     (not (every? number? [(:x node) (:y node) (:w node) (:h node)])))
                acc
                (reduce-kv
                 (fn [acc2 side items]
@@ -200,8 +204,7 @@
 
 (defn- clean-points [points]
   ;; 清理走线点集：
-  ;; - 去除连续重复点
-  ;; - 去除共线的中间点（水平/垂直）
+  ;; - 去除连续重复点\n  ;; - 去除共线的中间点（水平/垂直）
   ;; 这样可以避免 rounded-path 在拐点处生成“回头”的退化圆角。
   (let [dedup (reduce (fn [acc p]
                         (let [lp (peek acc)]
@@ -340,18 +343,23 @@
         port-assignments (assign-ports nodes edges options)
 
         ;; 2. Bounds（兜底）
-        bounds {:min-x (apply min (map :x nodes))
-                :max-x (apply max (map #(+ (:x %) (:w %)) nodes))
-                :min-y (apply min (map :y nodes))
-                :max-y (apply max (map #(+ (:y %) (:h %) 0) nodes))}
+        valid-nodes (filter (fn [n] (and (number? (:x n)) (number? (:w n))
+                                         (number? (:y n)) (number? (:h n))))
+                            nodes)
+        bounds (if (seq valid-nodes)
+                 {:min-x (apply min (map :x valid-nodes))
+                  :max-x (apply max (map #(+ (:x %) (:w %)) valid-nodes))
+                  :min-y (apply min (map :y valid-nodes))
+                  :max-y (apply max (map #(+ (:y %) (:h %) 0) valid-nodes))}
+                 {:min-x 0 :max-x 0 :min-y 0 :max-y 0})
 
         ;; 3. Route Each Edge
         routed-edges
         (map-indexed
          (fn [idx edge]
            (let [ports (get port-assignments (:id edge))]
-             (if (nil? ports)
-               (do (println "WARNING: No ports assigned for edge:" (:id edge) "from:" (:from edge) "to:" (:to edge))
+             (if (or (nil? ports) (nil? (:source ports)) (nil? (:target ports)))
+               (do (println "WARNING: Incomplete ports for edge:" (:id edge) "from:" (:from edge) "to:" (:to edge))
                    edge)
                (let [source (assoc (:source ports)
                                    :x (double (:x (:source ports)))

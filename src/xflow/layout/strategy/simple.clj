@@ -1,5 +1,6 @@
 (ns xflow.layout.strategy.simple
-  (:require [xflow.layout.sugiyama :as sugiyama]))
+  (:require [xflow.layout.sugiyama :as sugiyama]
+            [xflow.layout.coordinate :as coordinate]))
 
 (defn assign-coordinates [nodes edges options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
@@ -17,7 +18,8 @@
 
         ;; --- Optimization: Apply Advanced Coordinate Assignment (坐标分配) ---
         ;; 使用中位数启发式算法垂直对齐长连线，提高美观度 (Uses expanded graph)
-        processed-all-nodes (sugiyama/assign-coordinates ordered-nodes segment-edges options)
+        coord-result (coordinate/assign-coordinates ordered-nodes segment-edges options)
+        processed-all-nodes (:nodes coord-result)
 
         ;; --- Restoration ---
         ;; Filter out dummy nodes and apply their positions as waypoints to original edges
@@ -26,10 +28,10 @@
 
         ;; Calculate total graph dimensions based on processed nodes
         width (if (seq final-nodes)
-                (+ (apply max (map #(+ (:x %) (:w %)) final-nodes)) 50)
+                (+ (apply max (map #(+ (or (:x %) 0) (or (:w %) 0)) final-nodes)) 50)
                 0)
         height (if (seq final-nodes)
-                 (+ (apply max (map #(+ (:y %) (:h %)) final-nodes)) 50)
+                 (+ (apply max (map #(+ (or (:y %) 0) (or (:h %) 0)) final-nodes)) 50)
                  0)]
 
     {:nodes final-nodes
@@ -39,4 +41,4 @@
      :swimlanes []}))
 
 (defn layout [nodes edges options]
-  (assign-coordinates nodes edges options)) ;; No swimlanes for simple layout
+  (assign-coordinates nodes edges options))
