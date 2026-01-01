@@ -76,7 +76,7 @@
         rank-counts (->> real-nodes (group-by :rank) vals (map count))
         max-per-rank (if (seq rank-counts) (apply max rank-counts) 0)]
     (if (<= max-per-rank 1)
-      (let [centers (map (fn [n] (+ (:x n) (/ (:w n) 2.0))) real-nodes)
+      (let [centers (map #(:x (geo/node-center %)) real-nodes)
             spine (if (seq centers) (/ (reduce + centers) (count centers)) 0.0)
             aligned (mapv (fn [n]
                             (assoc n :x (- spine (/ (:w n) 2.0))))

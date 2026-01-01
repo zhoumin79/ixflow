@@ -151,19 +151,13 @@
 (defn apply-edge-points [original-edges nodes-with-coords]
   "Constructs full paths for edges, including source/target centers and any dummy node waypoints."
   (let [node-map (into {} (map (juxt :id identity) nodes-with-coords))
-        edge-dummies (group-by #(:id (:parent-edge %)) (filter :dummy? nodes-with-coords))
-
-        get-center (fn [node]
-                     (if node
-                       {:x (+ (:x node) (/ (or (:w node) 0) 2.0))
-                        :y (+ (:y node) (/ (or (:h node) 0) 2.0))}
-                       {:x 0 :y 0}))]
+        edge-dummies (group-by #(:id (:parent-edge %)) (filter :dummy? nodes-with-coords))]
 
     (map (fn [edge]
            (let [u (get node-map (or (:from edge) (:source edge)))
                  v (get node-map (or (:to edge) (:target edge)))
-                 start-pt (get-center u)
-                 end-pt (get-center v)
+                 start-pt (geo/node-center u)
+                 end-pt (geo/node-center v)
 
                  dummies (get edge-dummies (:id edge) [])
                  sorted-dummies (sort-by :rank dummies)
@@ -182,10 +176,9 @@
         layout-dir (:direction options "lr")
         horizontal? (or (= layout-dir "lr") (= layout-dir "rl"))
 
-        get-center (fn [n]
-                     (if horizontal?
-                       (+ (:y n) (/ (:h n) 2.0))
-                       (+ (:x n) (/ (:w n) 2.0))))
+        get-coord (fn [n]
+                    (let [center (geo/node-center n)]
+                      (if horizontal? (:y center) (:x center))))
 
         ;; Helper to find the chain of dummy nodes for an edge
         find-dummy-chain (fn [edge]
@@ -202,8 +195,8 @@
         adjust-chain (fn [nodes-map {:keys [start end dummies]}]
                        (if (empty? dummies)
                          nodes-map
-                         (let [start-center (get-center start)
-                               end-center (get-center end)
+                         (let [start-center (get-coord start)
+                               end-center (get-coord end)
 
                                ;; If start and end are close (e.g. same swimlane), align perfectly to start
                                target-pos (if (< (Math/abs (- start-center end-center)) 50)
@@ -260,7 +253,7 @@
 
     (if is-horizontal?
       {:nodes (geo/swap-xy final-nodes)
-       :edges (geo/swap-points-xy edges-with-points)
+       :edges (geo/swap-edges-xy edges-with-points)
        :width layout-h
        :height layout-w}
       {:nodes final-nodes

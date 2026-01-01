@@ -29,11 +29,7 @@
 ;; (defn- swap-coords ...)
 
 (defn- swap-edge-points [edges]
-  (map (fn [e]
-         (if (:points e)
-           (update e :points geo/swap-points-xy)
-           e))
-       edges))
+  (geo/swap-edges-xy edges))
 
 (defn- find-pool-by-name [pools name]
   ;; Recursive search for pool with name
@@ -45,17 +41,7 @@
         pools))
 
 (defn- get-ordered-lane-ids [pools]
-  (let [ids (atom [])]
-    (letfn [(visit [pool path]
-              (let [current-path (conj path (:name pool))
-                    full-id (str/join " / " current-path)]
-                (swap! ids conj full-id)
-                (doseq [child (:nodes pool)]
-                  (when (= (:type child) :pool)
-                    (visit child current-path)))))]
-      (doseq [p pools]
-        (visit p [])))
-    @ids))
+  (swimlane-ordering/get-ordered-lane-ids pools))
 
 ;; --- 核心逻辑 (Core Logic) ---
 
@@ -223,7 +209,7 @@
     ;; 10. Post-processing
     (if is-horizontal?
       {:nodes (swap-coords final-nodes)
-       :edges (swap-edge-points final-edges)
+       :edges (geo/swap-edges-xy final-edges)
        :swimlanes strips
        :width total-height
        :height total-width}

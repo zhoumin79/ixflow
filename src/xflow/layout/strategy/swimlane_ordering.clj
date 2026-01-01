@@ -4,20 +4,22 @@
 
 ;; --- Swimlane ID Extraction ---
 
+(defn get-ordered-lane-ids
+  "Extracts a list of swimlane IDs based on DFS traversal of pools."
+  [pools]
+  (letfn [(visit [pool path]
+            (let [current-path (conj path (:name pool))
+                  full-id (str/join " / " current-path)
+                  child-ids (mapcat #(when (= (:type %) :pool) (visit % current-path))
+                                    (:nodes pool))]
+              (cons full-id child-ids)))]
+    (mapcat #(visit % []) pools)))
+
 (defn- get-swimlane-order [pools]
   "Extracts a map of {swimlane-id -> index} based on the DFS traversal of pools.
    Matches the ID construction logic in xflow.layout.strategy.swimlane."
-  (let [ids (atom [])]
-    (letfn [(visit [pool path]
-              (let [current-path (conj path (:name pool))
-                    full-id (str/join " / " current-path)]
-                (swap! ids conj full-id)
-                (doseq [child (:nodes pool)]
-                  (when (= (:type child) :pool)
-                    (visit child current-path)))))]
-      (doseq [p pools]
-        (visit p [])))
-    (into {} (map-indexed (fn [i id] [id i]) @ids))))
+  (let [ids (get-ordered-lane-ids pools)]
+    (into {} (map-indexed (fn [i id] [id i]) ids))))
 
 ;; --- Constrained Sorting Helpers ---
 

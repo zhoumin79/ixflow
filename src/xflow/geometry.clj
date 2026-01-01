@@ -6,26 +6,8 @@
    node shifting, point simplification, routing helpers).
    
    For SVG path generation and shape rendering, see `xcommon.geometry`."
-  (:require [clojure.string :as str]))
-
-(defn distance
-  "Calculate Euclidean distance between two points."
-  [{:keys [x y] :as p1} p2]
-  (let [dx (- (:x p2) x)
-        dy (- (:y p2) y)]
-    (Math/sqrt (+ (* dx dx) (* dy dy)))))
-
-(defn midpoint
-  "Calculate midpoint between two points."
-  [p1 p2]
-  {:x (/ (+ (:x p1) (:x p2)) 2)
-   :y (/ (+ (:y p1) (:y p2)) 2)})
-
-(defn interpolate
-  "Linear interpolation between p1 and p2 at t (0.0 to 1.0)."
-  [p1 p2 t]
-  {:x (+ (:x p1) (* (- (:x p2) (:x p1)) t))
-   :y (+ (:y p1) (* (- (:y p2) (:y p1)) t))})
+  (:require [clojure.string :as str]
+            [xcommon.geometry :as geo]))
 
 (defn calculate-label-pos
   "Calculate the best position for a label on an edge defined by points."
@@ -38,7 +20,7 @@
             p1 (second points)
             ;; Initial guess at 0.4
             t 0.4
-            base-pos (interpolate p0 p1 t)
+            base-pos (geo/interpolate p0 p1 t)
 
             dx (- (:x p1) (:x p0))
             dy (- (:y p1) (:y p0))]
@@ -60,7 +42,7 @@
       (let [mid-idx (int (/ cnt 2))]
         (if (odd? cnt)
           (nth points mid-idx)
-          (midpoint (nth points (dec mid-idx)) (nth points mid-idx)))))))
+          (geo/midpoint (nth points (dec mid-idx)) (nth points mid-idx)))))))
 
 (defn bounding-box
   "Calculate the bounding box of a collection of items with :x, :y, :w, :h."
@@ -103,18 +85,6 @@
             (shift-point dx dy)))
         items))
 
-(defn collinear?
-  "Check if three points are collinear (same line)."
-  [p1 p2 p3]
-  (let [x1 (:x p1) y1 (:y p1)
-        x2 (:x p2) y2 (:y p2)
-        x3 (:x p3) y3 (:y p3)
-        epsilon 0.001]
-    ;; Check cross product for general collinearity
-    (< (Math/abs (- (* (- y2 y1) (- x3 x2))
-                    (* (- y3 y2) (- x2 x1))))
-       epsilon)))
-
 (defn simplify-points
   "Remove redundant collinear points from a path."
   [points]
@@ -126,7 +96,7 @@
          (conj acc p)
          (let [p2 (peek acc)
                p1 (peek (pop acc))]
-           (if (collinear? p1 p2 p)
+           (if (geo/collinear? p1 p2 p)
              (conj (pop acc) p) ;; Replace middle point
              (conj acc p)))))
      [(first points) (second points)]
@@ -179,3 +149,47 @@
                  {:x (double fixed-coord) :y var-coord})))
            (range count)))
     []))
+
+(defn swap-edges-xy
+  "Swaps x and y for the points inside a list of edges."
+  [edges]
+  (mapv (fn [e]
+          (if (:points e)
+            (update e :points swap-points-xy)
+            e))
+        edges))
+
+(defn node-center
+  "Calculate the center point of a node or rectangle with :x, :y, :w, :h."
+  [{:keys [x y w h]}]
+  {:x (+ (or x 0) (/ (or w 0) 2.0))
+   :y (+ (or y 0) (/ (or h 0) 2.0))})
+
+(defn clip-line-to-rect
+  "Find the intersection point of a line segment p1-p2 with the border of a rectangle.
+   rect: {:x :y :w :h}
+   p1: point inside or on border (e.g. center)
+   p2: point outside (e.g. next waypoint)"
+  [p1 p2 rect]
+  (let [cx (+ (:x rect) (/ (:w rect) 2))
+        cy (+ (:y rect) (/ (:h rect) 2))
+        dx (- (:x p2) cx)
+        dy (- (:y p2) cy)]
+    (if (and (zero? dx) (zero? dy))
+      p1
+      (let [slope (if (zero? dx) 1000000.0 (/ (double dy) (double dx)))
+            half-w (/ (:w rect) 2)
+            half-h (/ (:h rect) 2)
+
+            ;; Check intersections with vertical sides
+            ix1 (if (> dx 0) half-w (- half-w))
+            iy1 (* ix1 slope)
+
+            ;; Check intersections with horizontal sides
+            iy2 (if (> dy 0) half-h (- half-h))
+            ix2 (if (zero? slope) 1000000.0 (/ iy2 slope))]
+
+        (if (<= (Math/abs (double iy1)) (double half-h))
+          {:x (+ cx ix1) :y (+ cy iy1)}
+          {:x (+ cx ix2) :y (+ cy iy2)})))))
+

@@ -2,6 +2,51 @@
   (:require [clojure.string :as str]
             [xcommon.svg-path :as svg-path]))
 
+;; =============================================================================
+;; Pure Math & Geometric Primitives
+;; =============================================================================
+
+(defn distance
+  "Calculate Euclidean distance between two points."
+  [{:keys [x y] :as p1} p2]
+  (let [dx (- (:x p2) x)
+        dy (- (:y p2) y)]
+    (Math/sqrt (+ (* dx dx) (* dy dy)))))
+
+(defn midpoint
+  "Calculate midpoint between two points."
+  [p1 p2]
+  {:x (/ (+ (:x p1) (:x p2)) 2)
+   :y (/ (+ (:y p1) (:y p2)) 2)})
+
+(defn interpolate
+  "Linear interpolation between p1 and p2 at t (0.0 to 1.0)."
+  [p1 p2 t]
+  {:x (+ (:x p1) (* (- (:x p2) (:x p1)) t))
+   :y (+ (:y p1) (* (- (:y p2) (:y p1)) t))})
+
+(defn collinear?
+  "Check if three points are collinear (same line)."
+  [p1 p2 p3]
+  (let [x1 (:x p1) y1 (:y p1)
+        x2 (:x p2) y2 (:y p2)
+        x3 (:x p3) y3 (:y p3)
+        epsilon 0.001]
+    ;; Check cross product for general collinearity
+    (< (Math/abs (- (* (- y2 y1) (- x3 x2))
+                    (* (- y3 y2) (- x2 x1))))
+       epsilon)))
+
+(defn vec-sub [[x1 y1] [x2 y2]] [(- x1 x2) (- y1 y2)])
+(defn vec-add [[x1 y1] [x2 y2]] [(+ x1 x2) (+ y1 y2)])
+(defn vec-mag [[x y]] (Math/sqrt (+ (* x x) (* y y))))
+(defn vec-scale [[x y] s] [(* x s) (* y s)])
+(defn vec-normalize [v] (let [m (vec-mag v)] (if (zero? m) [0 0] (vec-scale v (/ 1.0 m)))))
+
+;; =============================================================================
+;; SVG Path Generation
+;; =============================================================================
+
 (defn tag-shape-points
   "Calculates the vertices of a tag shape (rectangle with a triangular tip).
    
@@ -330,48 +375,42 @@
             (.append sb (str " L " x " " y)))
 
           ;; Rounded corners
-          (let [;; Vector helpers
-                sub (fn [[x1 y1] [x2 y2]] [(- x1 x2) (- y1 y2)])
-                add (fn [[x1 y1] [x2 y2]] [(+ x1 x2) (+ y1 y2)])
-                mag (fn [[x y]] (Math/sqrt (+ (* x x) (* y y))))
-                scale (fn [[x y] s] [(* x s) (* y s)])
-                normalize (fn [v] (let [m (mag v)] (if (zero? m) [0 0] (scale v (/ 1.0 m)))))]
+          (loop [i 1]
+            (if (< i (dec len))
+              (let [prev (nth pts (dec i))
+                    curr (nth pts i)
+                    next (nth pts (inc i))
 
-            (loop [i 1]
-              (if (< i (dec len))
-                (let [prev (nth pts (dec i))
-                      curr (nth pts i)
-                      next (nth pts (inc i))
+                    ;; Vectors
+                    v1 (vec-sub curr prev)
+                    v2 (vec-sub next curr)
 
-                      ;; Vectors
-                      v1 (sub curr prev)
-                      v2 (sub next curr)
+                    ;; Lengths
+                    l1 (vec-mag v1)
+                    l2 (vec-mag v2)
 
-                      ;; Lengths
-                      l1 (mag v1)
-                      l2 (mag v2)
+                    ;; Radius can't exceed half the segment length
+                    r (min radius (/ l1 2) (/ l2 2))
 
-                      ;; Radius can't exceed half the segment length
-                      r (min radius (/ l1 2) (/ l2 2))
+                    ;; Start of curve (on v1, r away from curr)
+                    p-start (vec-sub curr (vec-scale (vec-normalize v1) r))
 
-                      ;; Start of curve (on v1, r away from curr)
-                      p-start (sub curr (scale (normalize v1) r))
+                    ;; End of curve (on v2, r away from curr)
+                    p-end (vec-add curr (vec-scale (vec-normalize v2) r))]
 
-                      ;; End of curve (on v2, r away from curr)
-                      p-end (add curr (scale (normalize v2) r))]
+                ;; Line to start of curve
+                (.append sb (str " L " (first p-start) " " (second p-start)))
 
-                  ;; Line to start of curve
-                  (.append sb (str " L " (first p-start) " " (second p-start)))
+                ;; Quadratic bezier to end of curve, control point is curr
+                (.append sb (str " Q " (first curr) " " (second curr)
+                                 " " (first p-end) " " (second p-end)))
 
-                  ;; Quadratic bezier to end of curve, control point is curr
-                  (.append sb (str " Q " (first curr) " " (second curr)
-                                   " " (first p-end) " " (second p-end)))
+                (recur (inc i)))
 
-                  (recur (inc i)))
-
-                ;; Line to last point
-                (let [[xl yl] (last pts)]
-                  (.append sb (str " L " xl " " yl))))))) \n (.toString sb)))))
+              ;; Line to last point
+              (let [[xl yl] (last pts)]
+                (.append sb (str " L " xl " " yl))))))
+        (.toString sb)))))
 
 (defn polygon-path
   "Generates a path definition for a polygon from a sequence of points."
