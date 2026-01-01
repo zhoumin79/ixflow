@@ -1,5 +1,7 @@
 (ns xflow.painter.svg
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [xflow.geometry :as geo]
+            [xcommon.geometry :as xgeo]))
 
 (defn escape-html [s]
   (when s
@@ -35,197 +37,12 @@
    "cpu" "⚙️"
    "code" "💻"})
 
-(declare curve-path)
-
-(defn- rounded-path [points radius]
-  (if (< (count points) 3)
-    ;; Fallback for simple lines
-    (str "M" (:x (first points)) "," (:y (first points)) " "
-         (str/join " " (map (fn [p] (str "L" (:x p) "," (:y p))) (rest points))))
-
-    ;; Generate path with curves
-    (let [start (first points)
-          path-cmds (atom [(str "M" (:x start) "," (:y start))])]
-      (dotimes [i (- (count points) 2)]
-        (let [curr (nth points (inc i))
-              prev (nth points i)
-              next (nth points (+ i 2))
-
-              ;; Vectors
-              dx1 (- (:x curr) (:x prev))
-              dy1 (- (:y curr) (:y prev))
-              len1 (Math/sqrt (+ (* dx1 dx1) (* dy1 dy1)))
-
-              dx2 (- (:x next) (:x curr))
-              dy2 (- (:y next) (:y curr))
-              len2 (Math/sqrt (+ (* dx2 dx2) (* dy2 dy2)))
-
-              ;; Effective radius (limit by segment length)
-              r (min radius (/ len1 2) (/ len2 2))
-
-              ;; Start of curve (backed off from corner)
-              p1-x (- (:x curr) (* r (/ dx1 len1)))
-              p1-y (- (:y curr) (* r (/ dy1 len1)))
-
-              ;; End of curve (forward from corner)
-              p2-x (+ (:x curr) (* r (/ dx2 len2)))
-              p2-y (+ (:y curr) (* r (/ dy2 len2)))]
-
-          (swap! path-cmds conj (str "L" p1-x "," p1-y))
-          (swap! path-cmds conj (str "Q" (:x curr) "," (:y curr) " " p2-x "," p2-y))))
-
-      ;; Final segment
-      (let [last-pt (last points)]
-        (swap! path-cmds conj (str "L" (:x last-pt) "," (:y last-pt))))
-
-      (str/join " " @path-cmds))))
-
-(defn- basis-spline-path [points]
-  (if (< (count points) 3)
-    (curve-path points) ;; Fallback to simple curve for short paths
-
-    (let [;; Duplicate start and end points to clamp the curve
-          pts (vec (concat [(first points)] points [(last points)]))
-          n (count pts)
-
-          ;; Start path at first point
-          start (nth pts 1) ;; Original first point
-          path-cmds (atom [(str "M" (:x start) "," (:y start))])]
-
-      ;; Iterate through windows of 4 points to generate segments
-      ;; B-Spline segment uses points i, i+1, i+2, i+3
-      ;; We iterate from 0 to n-4
-      (dotimes [i (- n 3)]
-        (let [p0 (nth pts i)
-              p1 (nth pts (inc i))
-              p2 (nth pts (+ i 2))
-              p3 (nth pts (+ i 3))
-
-              ;; B-Spline Basis Matrix to Bezier Control Points
-              ;; S = (P0 + 4P1 + P2) / 6
-              ;; C1 = (2P1 + P2) / 3   <- Wait, this is relative to segment
-              ;; Actually, the segment defined by P0..P3 goes from S to E
-              ;; where S is near P1 and E is near P2.
-              ;; 
-              ;; Correct Bezier Control Points for segment i:
-              ;; Start point S: (1/6)P0 + (2/3)P1 + (1/6)P2
-              ;; End point E:   (1/6)P1 + (2/3)P2 + (1/6)P3
-              ;; Ctrl 1:        (2/3)P1 + (1/3)P2
-              ;; Ctrl 2:        (1/3)P1 + (2/3)P2
-
-              x1 (+ (* (/ 1.0 6.0) (:x p0)) (* (/ 2.0 3.0) (:x p1)) (* (/ 1.0 6.0) (:x p2)))
-              y1 (+ (* (/ 1.0 6.0) (:y p0)) (* (/ 2.0 3.0) (:y p1)) (* (/ 1.0 6.0) (:y p2)))
-
-              x2 (+ (* (/ 1.0 6.0) (:x p1)) (* (/ 2.0 3.0) (:x p2)) (* (/ 1.0 6.0) (:x p3)))
-              y2 (+ (* (/ 1.0 6.0) (:y p1)) (* (/ 2.0 3.0) (:y p2)) (* (/ 1.0 6.0) (:y p3)))
-
-              cp1-x (+ (* (/ 2.0 3.0) (:x p1)) (* (/ 1.0 3.0) (:x p2)))
-              cp1-y (+ (* (/ 2.0 3.0) (:y p1)) (* (/ 1.0 3.0) (:y p2)))
-
-              cp2-x (+ (* (/ 1.0 3.0) (:x p1)) (* (/ 2.0 3.0) (:x p2)))
-              cp2-y (+ (* (/ 1.0 3.0) (:y p1)) (* (/ 2.0 3.0) (:y p2)))]
-
-          ;; For the first segment (i=0), the start point x1,y1 should be exactly P1 (original start)
-          ;; Because we duplicated P0=P1, calculation:
-          ;; S = 1/6 P1 + 2/3 P1 + 1/6 P2 = 5/6 P1 + 1/6 P2. Not exactly P1.
-          ;; Standard Basis Spline doesn't hit control points.
-          ;; But if we triple the end points, it does.
-          ;; Let's try tripling start/end in `pts` definition.
-
-          ;; If we just use L for start/end segments?
-          ;; Or just accept the standard Basis Spline approximation.
-          ;; Let's use the calculated points.
-
-          ;; Note: We need to Move to start of first segment if not already there?
-          ;; The SVG path is continuous.
-          (if (zero? i)
-            (swap! path-cmds conj (str "L" x1 "," y1))) ;; Connect from M(original) to S(spline start)
-
-          (swap! path-cmds conj (str "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " x2 "," y2))))
-
-      ;; Connect to final point
-      (let [end (last points)]
-        (swap! path-cmds conj (str "L" (:x end) "," (:y end))))
-
-      (str/join " " @path-cmds))))
-
-(defn- curve-path [points]
-  (let [pts (vec points)
-        n (count pts)]
-    (cond
-      (< n 2) ""
-      (= n 2)
-      ;; Use optimized S-curve for direct connections
-      (let [p0 (nth pts 0)
-            p1 (nth pts 1)
-            dx (- (:x p1) (:x p0))
-            dy (- (:y p1) (:y p0))
-            vertical? (>= (Math/abs (double dy)) (Math/abs (double dx)))
-            pull (double (min 80.0 (* 0.4 (if vertical? (Math/abs (double dy)) (Math/abs (double dx))))))
-            sgn (fn [v] (if (neg? v) -1.0 1.0))
-            [cp1-x cp1-y cp2-x cp2-y]
-            (if vertical?
-              [(:x p0) (+ (:y p0) (* pull (sgn dy)))
-               (:x p1) (- (:y p1) (* pull (sgn dy)))]
-              [(+ (:x p0) (* pull (sgn dx))) (:y p0)
-               (- (:x p1) (* pull (sgn dx))) (:y p1)])]
-        (str "M" (:x p0) "," (:y p0) " "
-             "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " (:x p1) "," (:y p1)))
-
-      :else
-      ;; Use Basis Spline for multi-point paths (Mermaid style)
-      ;; But first check if it's an Orthogonal path (Manhattan)
-      ;; Orthogonal paths look better with Rounded Corners.
-      ;; Non-orthogonal (Sugiyama) paths look better with Basis Spline.
-      (let [is-ortho? (every? (fn [i]
-                                (let [p1 (nth pts i)
-                                      p2 (nth pts (inc i))]
-                                  (or (= (:x p1) (:x p2)) (= (:y p1) (:y p2)))))
-                              (range (dec n)))]
-        (if is-ortho?
-          (rounded-path points 20)
-          (basis-spline-path points))))))
-
 (defn- strip-quotes [s]
   (if (string? s)
     (-> s
         str/trim
         (str/replace #"^\"+|\"+$" ""))
     s))
-
-(defn- calculate-label-pos [points]
-  (let [cnt (count points)]
-    (if (= cnt 2)
-      ;; Midpoint of segment
-      (let [p0 (first points)
-            p1 (second points)
-            ;; Initial guess at 0.4
-            t 0.4
-            pos-x (+ (:x p0) (* (- (:x p1) (:x p0)) t))
-            pos-y (+ (:y p0) (* (- (:y p1) (:y p0)) t))
-
-            ;; Heuristic to avoid overlap with target (p1)
-            dx (- (:x p1) (:x p0))
-            dy (- (:y p1) (:y p0))
-            dist (Math/sqrt (+ (* dx dx) (* dy dy)))]
-
-        ;; If distance is small, ensure we are far enough from p1
-        (if (> (Math/abs dy) (Math/abs dx))
-          ;; Vertical layout: check Y distance
-          (let [safe-y (- (:y p1) 35)] {:x pos-x :y (min pos-y safe-y)})
-          ;; Horizontal layout: check X distance (assuming L->R)
-          (if (> dx 0)
-            (let [safe-x (- (:x p1) 40)] {:x (min pos-x safe-x) :y pos-y})
-            {:x pos-x :y pos-y}))) ;; Backwards/other cases, leave as is
-
-      ;; Multi-point path (Spline or Manhattan)
-      (let [mid-idx (int (/ cnt 2))]
-        (if (odd? cnt)
-          (nth points mid-idx)
-          (let [p1 (nth points (dec mid-idx))
-                p2 (nth points mid-idx)]
-            {:x (/ (+ (:x p1) (:x p2)) 2)
-             :y (/ (+ (:y p1) (:y p2)) 2)}))))))
 
 (defn render-svg [layout]
   (let [nodes (:nodes layout)
@@ -328,8 +145,8 @@
         (let [points (:points e)]
           (when points
             (let [d (if (= (:routing-type e) :spline)
-                      (curve-path points)
-                      (rounded-path points 10))]
+                      (xgeo/smooth-curve-path points)
+                      (xgeo/polyline-path points :radius 10))]
               [:g
                (let [edge-type (:type e)
                      dashed? (or (= edge-type :dashed) (= edge-type :cross) (= edge-type "cross"))
@@ -359,7 +176,7 @@
                          :stroke-dasharray (if dashed? "6,6" "none")
                          :marker-end marker-end}])
                (when (:label e)
-                 (let [pos (calculate-label-pos points)]
+                 (when-let [pos (or (:label-pos e) (geo/calculate-label-pos points))]
                    [:g
                     [:rect {:x (- (:x pos) 20) :y (- (:y pos) 10) :width 40 :height 20 :fill "white" :opacity 0.9 :rx 3}]
                     [:text {:x (:x pos) :y (:y pos) :fill "#333" :font-size 11 :text-anchor "middle" :dominant-baseline "middle"} (escape-html (strip-quotes (:label e)))]]))]))))

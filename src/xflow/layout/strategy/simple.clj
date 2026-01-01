@@ -1,6 +1,7 @@
 (ns xflow.layout.strategy.simple
   (:require [xflow.layout.sugiyama :as sugiyama]
-            [xflow.layout.coordinate :as coordinate]))
+            [xflow.layout.coordinate :as coordinate]
+            [xflow.geometry :as geo]))
 
 (defn assign-coordinates [nodes edges options]
   (let [ranked-nodes (sugiyama/assign-ranks nodes edges)
@@ -27,12 +28,9 @@
         final-edges (sugiyama/apply-edge-points edges processed-all-nodes)
 
         ;; Calculate total graph dimensions based on processed nodes
-        width (if (seq final-nodes)
-                (+ (apply max (map #(+ (or (:x %) 0) (or (:w %) 0)) final-nodes)) 50)
-                0)
-        height (if (seq final-nodes)
-                 (+ (apply max (map #(+ (or (:y %) 0) (or (:h %) 0)) final-nodes)) 50)
-                 0)]
+        bounds (geo/bounding-box final-nodes)
+        width (+ (or (:max-x bounds) 0) 50)
+        height (+ (or (:max-y bounds) 0) 50)]
 
     {:nodes final-nodes
      :edges final-edges

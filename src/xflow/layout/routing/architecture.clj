@@ -1,6 +1,7 @@
 (ns xflow.layout.routing.architecture
   (:require [xflow.layout.config :as config]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [xflow.geometry :as geo]))
 
 ;; --- Utilities ---
 
@@ -13,19 +14,6 @@
    :y1 (- (:y node) padding)
    :x2 (+ (:x node) (:w node) padding)
    :y2 (+ (:y node) (:h node) padding)})
-
-(defn- distribute-points [start length fixed-coord count axis]
-  "Returns a sequence of {:x ... :y ...} points distributed along a line.
-   axis: :x (vary x, fixed y) or :y (vary y, fixed x)"
-  (if (and (number? start) (number? length) (number? fixed-coord) (number? count) (pos? count))
-    (let [step (double (/ length (inc count)))]
-      (map (fn [i]
-             (let [var-coord (double (+ start (* (inc i) step)))]
-               (if (= axis :x)
-                 {:x var-coord :y (double fixed-coord)}
-                 {:x (double fixed-coord) :y var-coord})))
-           (range count)))
-    []))
 
 ;; --- Port Assignment ---
 
@@ -176,10 +164,10 @@
                 (fn [acc2 side items]
                   (let [count (count items)
                         pts (case side
-                              :top (distribute-points (:x node) (:w node) (:y node) count :x)
-                              :bottom (distribute-points (:x node) (:w node) (+ (:y node) (:h node)) count :x)
-                              :left (distribute-points (:y node) (:h node) (:x node) count :y)
-                              :right (distribute-points (:y node) (:h node) (+ (:x node) (:w node)) count :y))
+                              :top (geo/distribute-points (:x node) (:w node) (:y node) count :x)
+                              :bottom (geo/distribute-points (:x node) (:w node) (+ (:y node) (:h node)) count :x)
+                              :left (geo/distribute-points (:y node) (:h node) (:x node) count :y)
+                              :right (geo/distribute-points (:y node) (:h node) (+ (:x node) (:w node)) count :y))
                         updates (map (fn [item pt]
                                        {(:id (:edge item))
                                         (if (:is-input? item)
@@ -201,28 +189,6 @@
      port-updates)))
 
 ;; --- Routing Logic ---
-
-(defn- clean-points [points]
-  ;; 清理走线点集：
-  ;; - 去除连续重复点\n  ;; - 去除共线的中间点（水平/垂直）
-  ;; 这样可以避免 rounded-path 在拐点处生成“回头”的退化圆角。
-  (let [dedup (reduce (fn [acc p]
-                        (let [lp (peek acc)]
-                          (if (and lp (= (:x lp) (:x p)) (= (:y lp) (:y p)))
-                            acc
-                            (conj acc p))))
-                      []
-                      points)]
-    (loop [src dedup
-           out []]
-      (if (<= (count src) 2)
-        (into out src)
-        (let [[a b c & more] src
-              colinear? (or (and (= (:x a) (:x b)) (= (:x b) (:x c)))
-                            (and (= (:y a) (:y b)) (= (:y b) (:y c))))]
-          (if colinear?
-            (recur (cons a (cons c more)) out)
-            (recur (cons b (cons c more)) (conj out a))))))))
 
 (defn- route-segment-standard [p1 p2 direction]
   ;; Simple orthogonal routing (Z-shape or straight)
@@ -380,7 +346,7 @@
 
                              :else
                              (route-segment-standard source target direction))]
-                   (assoc edge :points (clean-points pts)))))))
+                   (assoc edge :points (geo/simplify-points pts)))))))
          edges)]
 
     (assoc layout :edges routed-edges)))

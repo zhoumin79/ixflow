@@ -311,8 +311,11 @@
    [:line [(double x2) (double y2)]]])
 
 (defn polyline-path [points & {:keys [radius] :or {radius 0}}]
-  (let [extract-pt (fn [p] [(if (map? p) (:cx p) (first p))
-                            (if (map? p) (:cy p) (second p))])
+  (let [extract-pt (fn [p]
+                     (cond
+                       (vector? p) [(first p) (second p)]
+                       (map? p) [(or (:x p) (:cx p)) (or (:y p) (:cy p))]
+                       :else [0 0]))
         pts (mapv extract-pt points)
         len (count pts)]
     (if (< len 2)
@@ -368,8 +371,7 @@
 
                 ;; Line to last point
                 (let [[xl yl] (last pts)]
-                  (.append sb (str " L " xl " " yl)))))))
-        (.toString sb)))))
+                  (.append sb (str " L " xl " " yl))))))) \n (.toString sb)))))
 
 (defn polygon-path
   "Generates a path definition for a polygon from a sequence of points."
@@ -377,3 +379,67 @@
   (vec (cons [:move (first points)]
              (concat (map (fn [p] [:line p]) (rest points))
                      [[:close]]))))
+
+(defn basis-spline-path
+  "Generates a B-spline path string from a sequence of points.
+   Uses a pure functional approach without atoms."
+  [points]
+  (if (< (count points) 3)
+    ""
+    (let [pts (vec (concat [(first points)] points [(last points)]))
+          n (count pts)
+          start (nth pts 1)
+          initial-cmd (str "M" (:x start) "," (:y start))
+          segments (map (fn [i]
+                          (let [p0 (nth pts i)
+                                p1 (nth pts (inc i))
+                                p2 (nth pts (+ i 2))
+                                p3 (nth pts (+ i 3))
+                                x1 (+ (* (/ 1.0 6.0) (:x p0)) (* (/ 2.0 3.0) (:x p1)) (* (/ 1.0 6.0) (:x p2)))
+                                y1 (+ (* (/ 1.0 6.0) (:y p0)) (* (/ 2.0 3.0) (:y p1)) (* (/ 1.0 6.0) (:y p2)))
+                                x2 (+ (* (/ 1.0 6.0) (:x p1)) (* (/ 2.0 3.0) (:x p2)) (* (/ 1.0 6.0) (:x p3)))
+                                y2 (+ (* (/ 1.0 6.0) (:y p1)) (* (/ 2.0 3.0) (:y p2)) (* (/ 1.0 6.0) (:y p3)))
+                                cp1-x (+ (* (/ 2.0 3.0) (:x p1)) (* (/ 1.0 3.0) (:x p2)))
+                                cp1-y (+ (* (/ 2.0 3.0) (:y p1)) (* (/ 1.0 3.0) (:y p2)))
+                                cp2-x (+ (* (/ 1.0 3.0) (:x p1)) (* (/ 2.0 3.0) (:x p2)))
+                                cp2-y (+ (* (/ 1.0 3.0) (:y p1)) (* (/ 2.0 3.0) (:y p2)))]
+                            (cond-> ""
+                              (zero? i) (str "L" x1 "," y1 " ")
+                              :always (str "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " x2 "," y2))))
+                        (range (- n 3)))
+          end (last points)
+          final-cmd (str "L" (:x end) "," (:y end))]
+      (str/join " " (concat [initial-cmd] segments [final-cmd])))))
+
+(defn smooth-curve-path
+  "Generates a smooth curve path string (S-curve or B-spline) depending on point count."
+  [points]
+  (let [pts (vec points)
+        n (count pts)]
+    (cond
+      (< n 2) ""
+      (= n 2)
+      (let [p0 (nth pts 0)
+            p1 (nth pts 1)
+            dx (- (:x p1) (:x p0))
+            dy (- (:y p1) (:y p0))
+            vertical? (>= (Math/abs (double dy)) (Math/abs (double dx)))
+            pull (double (min 80.0 (* 0.4 (if vertical? (Math/abs (double dy)) (Math/abs (double dx))))))
+            sgn (fn [v] (if (neg? v) -1.0 1.0))
+            [cp1-x cp1-y cp2-x cp2-y]
+            (if vertical?
+              [(:x p0) (+ (:y p0) (* pull (sgn dy)))
+               (:x p1) (- (:y p1) (* pull (sgn dy)))]
+              [(+ (:x p0) (* pull (sgn dx))) (:y p0)
+               (- (:x p1) (* pull (sgn dx))) (:y p1)])]
+        (str "M" (:x p0) "," (:y p0) " "
+             "C" cp1-x "," cp1-y " " cp2-x "," cp2-y " " (:x p1) "," (:y p1)))
+      :else
+      (let [is-ortho? (every? (fn [i]
+                                (let [p1 (nth pts i)
+                                      p2 (nth pts (inc i))]
+                                  (or (= (:x p1) (:x p2)) (= (:y p1) (:y p2)))))
+                              (range (dec n)))]
+        (if is-ortho?
+          (polyline-path points :radius 20)
+          (basis-spline-path points))))))

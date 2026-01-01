@@ -1,6 +1,7 @@
 (ns xflow.layout.strategy.compound
   (:require [xflow.layout.sugiyama :as sugiyama]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [xflow.geometry :as geo]))
 
 (defn- get-all-descendants
   "Recursively get all descendant node IDs for a node (including itself)."
@@ -80,15 +81,14 @@
             aligned (mapv (fn [n]
                             (assoc n :x (- spine (/ (:w n) 2.0))))
                           nodes)
-            min-x (if (seq aligned) (apply min (map :x aligned)) 0.0)
-            min-y (if (seq aligned) (apply min (map :y aligned)) 0.0)
-            shifted (mapv (fn [n]
-                            (assoc n :x (- (:x n) min-x)
-                                   :y (- (:y n) min-y)))
-                          aligned)
-            max-x (if (seq shifted) (apply max (map #(+ (:x %) (:w %)) shifted)) 0.0)
-            max-y (if (seq shifted) (apply max (map #(+ (:y %) (:h %)) shifted)) 0.0)]
-        (assoc layout-res :nodes shifted :width max-x :height max-y))
+            bounds (geo/bounding-box aligned)
+            min-x (or (:min-x bounds) 0.0)
+            min-y (or (:min-y bounds) 0.0)
+            shifted (geo/shift-items aligned (- min-x) (- min-y))
+            new-bounds (geo/bounding-box shifted)]
+        (assoc layout-res :nodes shifted
+               :width (or (:max-x new-bounds) 0.0)
+               :height (or (:max-y new-bounds) 0.0)))
       layout-res)))
 
 (defn- layout-recursive [node all-edges options]

@@ -1,5 +1,6 @@
 (ns xflow.layout.coordinate
-  (:require [xflow.layout.config :as config]))
+  (:require [xflow.layout.config :as config]
+            [xflow.geometry :as geo]))
 
 ;; --- Helper Functions ---
 
@@ -134,16 +135,9 @@
 (defn- center-nodes [nodes]
   (if (empty? nodes)
     nodes
-    (let [xs (keep :x nodes)]
-      (if (empty? xs)
-        nodes
-        (let [min-x (apply min xs)
-              shift (- min-x)]
-          (map (fn [n]
-                 (if (:x n)
-                   (update n :x + shift)
-                   n))
-               nodes))))))
+    (let [bounds (geo/bounding-box nodes)
+          min-x (or (:min-x bounds) 0)]
+      (geo/shift-items nodes (- min-x) 0))))
 
 (defn assign-coordinates [ordered-nodes edges options]
   (let [config (config/resolve-config options)
@@ -159,13 +153,9 @@
         normalized (center-nodes final-nodes)
 
         ;; 计算总尺寸 (Calculate Total Dimensions)
-        ;; 增加空值检查，防止 NPE
-        width (if (seq normalized)
-                (apply max (map #(+ (:x %) (get-node-width %)) normalized))
-                0)
-        height (if (seq normalized)
-                 (apply max (map #(+ (:y %) (get-node-height %)) normalized))
-                 0)]
+        bounds (geo/bounding-box normalized)
+        width (or (:max-x bounds) 0)
+        height (or (:max-y bounds) 0)]
 
     {:nodes normalized
      :edges edges

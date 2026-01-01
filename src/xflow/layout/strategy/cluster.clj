@@ -1,4 +1,5 @@
-(ns xflow.layout.strategy.cluster)
+(ns xflow.layout.strategy.cluster
+  (:require [xflow.geometry :as geo]))
 
 (defn process-layout [initial-nodes]
   (let [;; Separate global nodes (empty swimlane-id)
@@ -6,9 +7,10 @@
         cluster-nodes (remove #(empty? (:swimlane-id %)) initial-nodes)
 
         ;; Calculate actual content width of clusters
-        cluster-min-x (if (seq cluster-nodes) (apply min (map :x cluster-nodes)) 0)
-        cluster-max-x (if (seq cluster-nodes) (apply max (map #(+ (:x %) (:w %)) cluster-nodes)) 0)
-        cluster-center (/ (+ cluster-min-x cluster-max-x) 2)
+        cluster-bounds (geo/bounding-box cluster-nodes)
+        cluster-center (if cluster-bounds
+                         (/ (+ (:min-x cluster-bounds) (:max-x cluster-bounds)) 2)
+                         0)
 
         ;; Rank Split Strategy for Vertical Separation
         ;; Identify ranks that contain BOTH Global and Cluster nodes
@@ -61,18 +63,17 @@
         clusters (group-by :swimlane-id (filter #(not (empty? (:swimlane-id %))) spaced-nodes))
 
         ;; 2. Calculate height of each cluster
-        cluster-bounds
+        cluster-bounds-map
         (into {}
               (map (fn [[id nodes]]
-                     (let [min-y (apply min (map :y nodes))
-                           max-y (apply max (map #(+ (:y %) (:h %)) nodes))
-                           height (- max-y min-y)]
-                       [id {:min-y min-y :height height}]))
+                     (let [bounds (geo/bounding-box nodes)
+                           height (- (:max-y bounds) (:min-y bounds))]
+                       [id {:min-y (:min-y bounds) :height height}]))
                    clusters))
 
         ;; 3. Find max height
-        max-cluster-height (if (seq cluster-bounds)
-                             (apply max (map (comp :height val) cluster-bounds))
+        max-cluster-height (if (seq cluster-bounds-map)
+                             (apply max (map (comp :height val) cluster-bounds-map))
                              0)
 
         ;; 4. Calculate shifts for centering
@@ -81,7 +82,7 @@
                (if (empty? (:swimlane-id n))
                  n ;; Global node, untouched
                  (let [id (:swimlane-id n)
-                       {:keys [height]} (get cluster-bounds id)
+                       {:keys [height]} (get cluster-bounds-map id)
                        shift (/ (- max-cluster-height height) 2)]
                    (update n :y + shift))))
              spaced-nodes)]
@@ -94,15 +95,12 @@
                                       (not (:dummy? %))) ;; Exclude dummy nodes from cluster box
                                 processed-nodes)]
             (if (and (seq l-nodes) (not (empty? (:id l)))) ;; Skip global lane
-              (let [min-x (apply min (map :x l-nodes))
-                    max-x (apply max (map #(+ (:x %) (:w %)) l-nodes))
-                    min-y (apply min (map :y l-nodes))
-                    max-y (apply max (map #(+ (:y %) (:h %)) l-nodes))
+              (let [bounds (geo/bounding-box l-nodes)
                     padding 30]
-                {:x (- min-x padding)
-                 :y (- min-y padding)
-                 :w (+ (- max-x min-x) (* 2 padding))
-                 :h (+ (- max-y min-y) (* 2 padding))
+                {:x (- (:min-x bounds) padding)
+                 :y (- (:min-y bounds) padding)
+                 :w (+ (- (:max-x bounds) (:min-x bounds)) (* 2 padding))
+                 :h (+ (- (:max-y bounds) (:min-y bounds)) (* 2 padding))
                  :label (:label l)
                  :props (:props l)
                  :index (:index l)})

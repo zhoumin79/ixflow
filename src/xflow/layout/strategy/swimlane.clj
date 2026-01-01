@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [xflow.layout.layering.network-simplex :as network-simplex]
             [xflow.layout.sugiyama :as sugiyama]
-            [xflow.layout.strategy.swimlane-ordering :as swimlane-ordering]))
+            [xflow.layout.strategy.swimlane-ordering :as swimlane-ordering]
+            [xflow.geometry :as geo]))
 
 (def NODE-WIDTH 150)
 (def NODE-HEIGHT 80)
@@ -13,16 +14,24 @@
 
 ;; --- 辅助函数 (Helpers) ---
 
-(defn- swap-node-dims [nodes]
-  (map (fn [n] (assoc n :w (:h n) :h (:w n))) nodes))
+;; --- 辅助函数 (Helpers) ---
 
-(defn- swap-coords [nodes]
-  (map (fn [n] (assoc n :x (:y n) :y (:x n))) nodes))
+;; Replaced by geo/swap-xy
+(def swap-node-dims geo/swap-xy)
+
+;; Replaced by geo/swap-xy
+(def swap-coords geo/swap-xy)
+
+;; Removed swap-edge-points as it is redefined above
+;; (defn- swap-edge-points ...)
+
+;; Removed swap-coords as it is replaced by def above
+;; (defn- swap-coords ...)
 
 (defn- swap-edge-points [edges]
   (map (fn [e]
          (if (:points e)
-           (update e :points (fn [pts] (mapv (fn [p] {:x (:y p) :y (:x p)}) pts)))
+           (update e :points geo/swap-points-xy)
            e))
        edges))
 

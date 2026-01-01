@@ -1,5 +1,6 @@
 (ns xflow.layout.routing.ortho
-  (:require [xflow.layout.config :as config]))
+  (:require [xflow.layout.config :as config]
+            [xflow.geometry :as geo]))
 
 (defn- get-node-bounds [node padding]
   (let [x (or (:x node) 0)
@@ -11,16 +12,8 @@
      :x2 (+ x w padding)
      :y2 (+ y h padding)}))
 
-(defn- distribute-points [start length fixed-coord count axis]
-  (if (<= count 0)
-    []
-    (let [step (/ (double length) (inc count))]
-      (mapv (fn [i]
-              (let [pos (+ start (* (inc i) step))]
-                (if (= axis :x)
-                  {:x pos :y fixed-coord}
-                  {:x fixed-coord :y pos})))
-            (range count)))))
+;; Replaced by xflow.geometry/distribute-points
+(def distribute-points geo/distribute-points)
 
 (defn- is-vertical? [direction]
   (let [d (keyword direction)]
@@ -170,24 +163,9 @@
 
 ;; --- 路径简化 (Path Simplification) ---
 
-(defn- collinear? [p1 p2 p3]
-  (or (and (= (:x p1) (:x p2)) (= (:x p2) (:x p3)))
-      (and (= (:y p1) (:y p2)) (= (:y p2) (:y p3)))))
+;; Replaced by xflow.geometry/collinear?
 
-(defn- simplify-points [points]
-  (if (< (count points) 3)
-    points
-    (reduce
-     (fn [acc p]
-       (if (< (count acc) 2)
-         (conj acc p)
-         (let [p2 (peek acc)
-               p1 (peek (pop acc))]
-           (if (collinear? p1 p2 p)
-             (conj (pop acc) p) ;; Replace middle point
-             (conj acc p)))))
-     [(first points) (second points)]
-     (drop 2 points))))
+;; Replaced by xflow.geometry/simplify-points
 
 ;; --- 主路由逻辑 (Main Routing Logic) ---
 
@@ -390,7 +368,7 @@
                                                       (not= (:id %) (:to edge)))
                                                 nodes)
                          points (route-segment-smart source-port target-port direction relevant-nodes)
-                         simplified (simplify-points points)]
+                         simplified (geo/simplify-points points)]
                      (assoc edge :points simplified))
                    edge))) ;; Keep original if ports not found
              edges)
