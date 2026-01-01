@@ -317,18 +317,54 @@
               (merge node matched-rule)))
           nodes)))
 
-(defn layout [nodes edges pools options]
-  (let [layout-mode (:layout options)
-        ;; Apply layout rules (ports, sizing, etc.) before any processing
-        nodes-with-rules (apply-layout-rules nodes)
+(defmulti layout-strategy
+  "Dispatch layout strategy based on options.
+   Returns a map with :nodes, :edges, and optionally :swimlanes."
+  (fn [ctx] (get-in ctx [:options :layout])))
 
-        routing-mode (:routing options "manhattan")
+(defmethod layout-strategy "compound" [ctx]
+  (compound/layout (:nodes ctx) (:edges ctx) (:pools ctx) (:options ctx)))
+
+(defmethod layout-strategy "swimlane" [ctx]
+  (let [{:keys [nodes edges pools options]} ctx
+        ;; Filter out pool nodes from content nodes
+        content-nodes (filterv #(not= (:type %) :pool) nodes)
+        ordered-swimlanes (swimlane-ordering/order-swimlanes content-nodes edges pools options)]
+    (assign-coordinates content-nodes edges ordered-swimlanes options)))
+
+(defmethod layout-strategy "cluster" [ctx]
+  (let [{:keys [nodes edges pools options]} ctx
+        content-nodes (filterv #(not= (:type %) :pool) nodes)]
+    (assign-coordinates content-nodes edges pools options)))
+
+(defmethod layout-strategy :default [ctx]
+  (simple/layout (:nodes ctx) (:edges ctx) (:options ctx)))
+
+(defn- prepare-layout
+  "Prepare layout context: apply rules, coerce sizes."
+  [{:keys [nodes edges pools options] :as ctx}]
+  (let [;; Apply layout rules (ports, sizing, etc.)
+        nodes-with-rules (apply-layout-rules nodes)
+        ;; Coerce node sizes
+        sized-nodes (mapv coerce-node-size nodes-with-rules)]
+    (assoc ctx :nodes sized-nodes)))
+
+(defn- execute-strategy
+  "Execute the selected layout strategy."
+  [ctx]
+  (let [result (layout-strategy ctx)]
+    (merge ctx result)))
+
+(defn- route-layout
+  "Apply routing to the layout result."
+  [{:keys [nodes edges options] :as ctx}]
+  (let [routing-mode (:routing options "manhattan")
         route-fn (case routing-mode
                    "spline" spline/route-edges
                    "ortho" ortho/route-edges
                    "architecture" architecture/route-edges
                    manhattan/route-edges)
-        sized-nodes (mapv coerce-node-size nodes-with-rules) ;; Use nodes with rules
+
         hidden-edge? (fn [e]
                        (let [t (:type e)
                              hidden (:hidden e)]
@@ -336,34 +372,28 @@
                              (= t "invisible")
                              (= hidden true)
                              (= hidden "true"))))
-        route-visible (fn [layout]
-                        (route-fn (update layout :edges (fn [es] (vec (remove hidden-edge? es))))
-                                  options))]
-    (cond
-      (= layout-mode "compound")
-      (-> (compound/layout sized-nodes edges pools options)
-          (route-visible)
-          (normalize-layout))
 
-      (= layout-mode "swimlane")
-      ;; Swimlane 模式使用排序后的泳道，再进入统一坐标分配流程
-      ;; FIX: Filter out pool nodes from content nodes, as they are containers, not layout nodes
-      (let [content-nodes (filterv #(not= (:type %) :pool) sized-nodes)
-            ordered-swimlanes (swimlane-ordering/order-swimlanes content-nodes edges pools options)]
-        (-> (assign-coordinates content-nodes edges ordered-swimlanes options)
-            (route-visible)
-            (normalize-layout)))
+        ;; Filter edges for routing, but keep original edges structure if needed?
+        ;; The original code updated the layout edges.
+        visible-edges (vec (remove hidden-edge? edges))
 
-      (= layout-mode "cluster")
-      ;; Cluster 模式复用泳道的坐标分配与集群后处理，确保节点 x/y/w/h 完整
-      ;; FIX: Filter out pool nodes here too
-      (let [content-nodes (filterv #(not= (:type %) :pool) sized-nodes)]
-        (-> (assign-coordinates content-nodes edges pools options)
-            (route-visible)
-            (normalize-layout)))
+        ;; Run routing
+        routed-result (route-fn {:nodes nodes :edges visible-edges} options)]
 
-      :else
-      (let [simple-layout (simple/layout sized-nodes edges options)]
-        (-> simple-layout
-            (route-visible)
-            (normalize-layout))))))
+    (assoc ctx
+           :edges (:edges routed-result)
+           :nodes (:nodes routed-result)))) ;; Some routers might adjust nodes (e.g. ports)
+
+(defn- finalize-layout
+  "Normalize and clean up the layout result."
+  [ctx]
+  (normalize-layout (select-keys ctx [:nodes :edges :swimlanes :width :height])))
+
+(defn layout
+  "Main layout entry point using a pipeline."
+  [nodes edges pools options]
+  (-> {:nodes nodes :edges edges :pools pools :options options}
+      prepare-layout
+      execute-strategy
+      route-layout
+      finalize-layout))
