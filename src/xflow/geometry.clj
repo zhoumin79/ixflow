@@ -9,6 +9,29 @@
   (:require [clojure.string :as str]
             [xcommon.geometry :as geo]))
 
+(defn- segment-lengths [points]
+  (map (fn [[p1 p2]] (geo/distance p1 p2))
+       (partition 2 1 points)))
+
+(defn- point-at-ratio [points ratio]
+  (let [segs (partition 2 1 points)
+        lengths (segment-lengths points)
+        total-len (reduce + lengths)
+        target-dist (* total-len ratio)]
+    (loop [segs segs
+           lens lengths
+           covered 0.0]
+      (if (or (empty? segs) (empty? lens))
+        (last points)
+        (let [[p1 p2] (first segs)
+              len (first lens)]
+          (if (and (> len 0) (<= (+ covered len) target-dist))
+            (recur (rest segs) (rest lens) (+ covered len))
+            ;; Found segment
+            (let [rem-dist (max 0.0 (- target-dist covered))
+                  t (if (zero? len) 0.0 (/ rem-dist len))]
+              (geo/interpolate p1 p2 t))))))))
+
 (defn calculate-label-pos
   "Calculate the best position for a label on an edge defined by points."
   [points]
@@ -18,7 +41,7 @@
       (= cnt 2)
       (let [p0 (first points)
             p1 (second points)
-            ;; Initial guess at 0.4
+            ;; Initial guess at 0.4 (kept for backward compatibility/preference)
             t 0.4
             base-pos (geo/interpolate p0 p1 t)
 
@@ -38,11 +61,8 @@
 
       :else
       ;; Multi-point path (Spline or Manhattan)
-      ;; Find the middle segment or point
-      (let [mid-idx (int (/ cnt 2))]
-        (if (odd? cnt)
-          (nth points mid-idx)
-          (geo/midpoint (nth points (dec mid-idx)) (nth points mid-idx)))))))
+      ;; Use the point at 50% of the total path length
+      (point-at-ratio points 0.5))))
 
 (defn bounding-box
   "Calculate the bounding box of a collection of items with :x, :y, :w, :h."

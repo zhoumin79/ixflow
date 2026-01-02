@@ -36,9 +36,63 @@
 
 ;; --- Phase 1: Layering ---
 
+(defn- remove-cycles [nodes edges]
+  "Returns a set of edges that form a DAG by reversing back-edges."
+  (let [adj (reduce (fn [m e] (update m (:from e) (fnil conj []) e)) {} edges)
+
+        ;; Sort nodes to ensure deterministic start order
+        in-degrees (reduce (fn [acc e] (update acc (:to e) (fnil inc 0)))
+                           {} edges)
+        sorted-nodes (sort-by (fn [n] (get in-degrees (:id n) 0)) nodes)
+
+        ;; Recursive DFS function that carries state
+        ;; state: {:visited #{} :on-stack #{} :edges []}
+        visit-fn (fn visit [state u-id]
+                   (let [state-1 (-> state
+                                     (update :visited conj u-id)
+                                     (update :on-stack conj u-id))
+
+                         ;; Process neighbors
+                         neighbors (get adj u-id)
+
+                         final-state (reduce
+                                      (fn [curr-state e]
+                                        (let [v-id (:to e)]
+                                          (cond
+                                            ;; Back edge: v is on recursion stack
+                                            (contains? (:on-stack curr-state) v-id)
+                                            (update curr-state :edges conj (assoc e :from v-id :to u-id :reversed? true))
+
+                                            ;; Not visited: recurse
+                                            (not (contains? (:visited curr-state) v-id))
+                                            (let [after-visit (visit curr-state v-id)]
+                                              ;; Add the edge (it's a tree edge)
+                                              (update after-visit :edges conj e))
+
+                                            ;; Already visited (Forward/Cross edge)
+                                            :else
+                                            (update curr-state :edges conj e))))
+                                      state-1
+                                      neighbors)]
+
+                     ;; Backtrack: remove u from stack
+                     (update final-state :on-stack disj u-id)))
+
+        ;; Iterate over all nodes to ensure disconnected components are visited
+        final-state (reduce (fn [state n]
+                              (if (contains? (:visited state) (:id n))
+                                state
+                                (visit-fn state (:id n))))
+                            {:visited #{} :on-stack #{} :edges []}
+                            sorted-nodes)]
+
+    (:edges final-state)))
+
 (defn assign-ranks [nodes edges]
-  "Assigns ranks to nodes using Network Simplex algorithm."
-  (network-simplex/assign-ranks nodes edges))
+  "Assigns ranks to nodes using Network Simplex algorithm.
+   Handles cycles by temporarily reversing back-edges."
+  (let [acyclic-edges (remove-cycles nodes edges)]
+    (network-simplex/assign-ranks nodes acyclic-edges)))
 
 ;; --- Phase 2: Crossing Minimization ---
 
