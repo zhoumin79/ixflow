@@ -22,5 +22,5 @@
            ;; MCP server configuration (for reference)
            :mcp {:extra-deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
                               clojure-mcp/clojure-mcp {:local/root "../clojure-mcp"}}
-                 :exec-fn clojure-mcp.main/start-mcp-server
+                 :exec-fn clojure-mcp.main/start
                  :exec-args {:port 7888}}}}
