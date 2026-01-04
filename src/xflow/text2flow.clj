@@ -4,7 +4,8 @@
             [xflow.dsl.parser :as parser]
             [xflow.layout.core :as layout]
             [xflow.painter.svg :as painter]
-            [xcommon.io :as xio]))
+            [xcommon.io :as xio]
+            [xflow.theme.core :as theme]))
 
 (defn render [dsl-str output-file]
   (println "Starting render...")
@@ -14,16 +15,25 @@
         _ (println "Flattened nodes:" (count nodes))
 
         ;; Determine layout options from config
-        config (:config model)
-        direction (or (:direction config) "lr")
-        swimlane-mode (or (:swimlane-mode config)
+        dsl-config (:config model)
+
+        ;; Resolve Theme
+        theme-name (or (:theme dsl-config) "default")
+        _ (println "Resolving theme:" theme-name)
+        theme-config (theme/get-theme-config theme-name)
+
+        ;; Merge configs: Theme provides base styles/settings, DSL config provides overrides (layout, title, etc)
+        final-config (merge theme-config dsl-config)
+
+        direction (or (:direction final-config) "lr")
+        swimlane-mode (or (:swimlane-mode final-config)
                           (if (or (= direction "tb") (= direction "vertical"))
                             "vertical"
                             "horizontal"))
         options {:direction direction
                  :swimlane-mode swimlane-mode
-                 :layout (:layout config) ;; Pass layout mode
-                 :routing (:routing config)} ;; Pass routing mode (spline or manhattan)
+                 :layout (:layout final-config) ;; Pass layout mode
+                 :routing (:routing final-config)} ;; Pass routing mode (spline or manhattan)
 
         _ (println "Layout options:" options)
         ;; Use new layout engine
@@ -31,7 +41,7 @@
         _ (println "Layout completed. Nodes:" (count (:nodes layout-result)))
 
         ;; Add config to layout result for title rendering
-        layout-result (assoc layout-result :config config)
+        layout-result (assoc layout-result :config final-config)
 
         ;; Render to SVG Hiccup
         svg-hiccup (painter/render-svg layout-result)]

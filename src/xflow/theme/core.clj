@@ -151,8 +151,15 @@
           (if (seq keys-to-select)
             (select-keys base-rules keys-to-select)
             base-rules))
-        (resolve-ref val context)))
-    (resolve-ref val context)))
+        (do
+          (println "Warning: Could not resolve rule path:" val)
+          {})))
+    (let [resolved (resolve-ref val context)]
+      (if (vector? resolved)
+        (do
+          (println "Warning: Could not resolve rule ref:" val)
+          {})
+        resolved))))
 
 (defn- resolve-rules [rules context]
   (reduce-kv (fn [m k v]
@@ -172,9 +179,14 @@
       (let [colors-ref (:colors theme-def)
             color-theme (resolve-ref colors-ref context)
             config (theme->painter-config color-theme context)
-            resolved-rules (resolve-rules (:rules theme-def) context)]
-        ;; Merge rules from the theme definition into the config
-        (assoc config :rules resolved-rules))
+            resolved-rules (resolve-rules (:rules theme-def) context)
+            ;; Resolve gradients if present
+            gradients-ref (:gradients theme-def)
+            resolved-gradients (when gradients-ref (resolve-ref gradients-ref context))]
+        ;; Merge rules and gradients from the theme definition into the config
+        (assoc config
+               :rules resolved-rules
+               :gradients resolved-gradients))
 
       color-theme-def
       (theme->painter-config color-theme-def context)
@@ -185,3 +197,4 @@
         (if (not= theme-key :default)
           (get-theme-config :default)
           nil)))))
+

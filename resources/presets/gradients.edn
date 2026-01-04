@@ -1,82 +1,81 @@
 {:gradients
- {:presets
-  {;; 基础渐变
-   :none {:type :solid
-          :colors ["#ffffff"]
-          :description "纯色白色背景"}
+ {;; 基础渐变
+  :none {:type :solid
+         :colors ["#ffffff"]
+         :description "纯色白色背景"}
 
-   :linear-default {:type :linear
-                    :colors ["#667eea" "#764ba2"]
+  :linear-default {:type :linear
+                   :colors ["#667eea" "#764ba2"]
+                   :direction :diagonal
+                   :description "默认线性渐变"}
+
+  :purple-blue {:type :linear
+                :colors ["#667eea" "#764ba2"]
+                :direction :diagonal
+                :description "紫蓝渐变 - 135度对角线，你喜欢的样式"}
+
+  :radial-default {:type :radial
+                   :colors ["#667eea" "#764ba2"]
+                   :center :center
+                   :description "默认径向渐变"}
+
+  ;; 主题渐变
+  :sunset {:type :linear
+           :colors ["#fa8072" "#ffd700"]
+           :direction :horizontal
+           :description "日落渐变 - 橙红到金黄"}
+
+  :creative-orange {:type :linear
+                    :colors ["#ff7f50" "#ff6347"]
                     :direction :diagonal
-                    :description "默认线性渐变"}
+                    :description "创意橙色渐变 - 珊瑚橙到番茄红"}
 
-   :purple-blue {:type :linear
-                 :colors ["#667eea" "#764ba2"]
-                 :direction :diagonal
-                 :description "紫蓝渐变 - 135度对角线，你喜欢的样式"}
+  :ocean {:type :radial
+          :colors ["#00ced1" "#0000cd"]
+          :center :center
+          :description "海洋渐变 - 青色到深蓝"}
 
-   :radial-default {:type :radial
-                    :colors ["#667eea" "#764ba2"]
-                    :center :center
-                    :description "默认径向渐变"}
+  :forest {:type :linear
+           :colors ["#32cd32" "#006400"]
+           :direction :vertical
+           :description "森林渐变 - 浅绿到深绿"}
 
-   ;; 主题渐变
-   :sunset {:type :linear
-            :colors ["#fa8072" "#ffd700"]
-            :direction :horizontal
-            :description "日落渐变 - 橙红到金黄"}
-
-   :creative-orange {:type :linear
-                     :colors ["#ff7f50" "#ff6347"]
-                     :direction :diagonal
-                     :description "创意橙色渐变 - 珊瑚橙到番茄红"}
-
-   :ocean {:type :radial
-           :colors ["#00ced1" "#0000cd"]
-           :center :center
-           :description "海洋渐变 - 青色到深蓝"}
-
-   :forest {:type :linear
-            :colors ["#32cd32" "#006400"]
-            :direction :vertical
-            :description "森林渐变 - 浅绿到深绿"}
-
-   :best-timeline {:type :linear
-                   :colors ["#0dcaf0" "#0d6efd"]
-                   :direction :horizontal
-                   :description "最佳时间线渐变 - 青色到蓝色"}
-
-   :professional {:type :linear
-                  :colors ["#96a6a6" "#1bbc9d"]
+  :best-timeline {:type :linear
+                  :colors ["#0dcaf0" "#0d6efd"]
                   :direction :horizontal
-                  :description "专业渐变 - 灰色到青绿"}
+                  :description "最佳时间线渐变 - 青色到蓝色"}
 
-   :creative {:type :linear
-              :colors ["#fa8072" "#6a5acd"]
-              :direction :horizontal
-              :description "创意渐变 - 橙红到紫色"}
-
-   :best {:type :linear
-          :colors ["#4a90e2" "#7b68ee"]
-          :direction :horizontal
-          :description "最佳主题渐变 - 蓝色到紫色"}
-
-   :modern-blue {:type :linear
-                 :colors ["#1e3c72" "#2a5298"]
+  :professional {:type :linear
+                 :colors ["#96a6a6" "#1bbc9d"]
                  :direction :horizontal
-                 :description "现代蓝色渐变 - 深蓝到中蓝"}
+                 :description "专业渐变 - 灰色到青绿"}
 
-   :elegant-purple {:type :linear
-                    :colors ["#667eea" "#764ba2"]
-                    :direction :horizontal
-                    :description "优雅紫色渐变 - 浅紫到深紫"}
+  :creative {:type :linear
+             :colors ["#fa8072" "#6a5acd"]
+             :direction :horizontal
+             :description "创意渐变 - 橙红到紫色"}
 
-   :blue-to-green {:type :linear
-                   :colors ["#1890ff" "#52c41a"]
+  :best {:type :linear
+         :colors ["#4a90e2" "#7b68ee"]
+         :direction :horizontal
+         :description "最佳主题渐变 - 蓝色到紫色"}
+
+  :modern-blue {:type :linear
+                :colors ["#1e3c72" "#2a5298"]
+                :direction :horizontal
+                :description "现代蓝色渐变 - 深蓝到中蓝"}
+
+  :elegant-purple {:type :linear
+                   :colors ["#667eea" "#764ba2"]
                    :direction :horizontal
-                   :description "蓝绿渐变"}}
+                   :description "优雅紫色渐变 - 浅紫到深紫"}
 
- ;; CSS模板，用于生成最终CSS
+  :blue-to-green {:type :linear
+                  :colors ["#1890ff" "#52c41a"]
+                  :direction :horizontal
+                  :description "蓝绿渐变"}
+
+  ;; CSS模板，用于生成最终CSS
   :templates
   {:linear {:horizontal "linear-gradient(to right, $colors)"
             :vertical "linear-gradient(to bottom, $colors)"

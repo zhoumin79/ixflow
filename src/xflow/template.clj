@@ -19,6 +19,13 @@
         data (:data template)
         dsl (:pool-dsl data)
         config (:config data)
+
+        ;; Extract theme name if present
+        theme-name (or (-> template :theme :name) "default")
+
+        ;; Merge theme into config to be injected into DSL
+        config (assoc config :theme theme-name)
+
         ;; Inject config from EDN into DSL string so parser picks it up
         config-lines (map (fn [[k v]] (str (name k) ": " v)) config)
         full-dsl (str (str/join "\n" config-lines) "\n" dsl)

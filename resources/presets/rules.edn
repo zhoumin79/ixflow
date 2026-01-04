@@ -1,5 +1,8 @@
 {:rules
- {:task {:default {[:completed :any] {:shape :default}}}
+ {:task {:default {[:completed :any] {:shape :default}}
+         :completed-100 {[:completed 100] {:element-fill-colour "#4CAF50" :element-outline-colour "#2E7D32" :element-font-colour "white"}}
+         :high-progress {[:completed 80] {:element-fill-colour "#81C784"}}
+         :low-progress {[:completed 20] {:element-fill-colour "#E57373"}}}
   :swimlane
   {:pool-header
    {[:pool-idx :any]

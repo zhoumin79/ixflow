@@ -74,4 +74,4 @@
 
          tw (shell "clojure -X:tw")
          ai (shell "clojure -M:nrepl")
-         mcp (shell "clojure -X:mcp :not-cwd true :port 7888")}}
+         mcp (shell "clojure -X:mcp :port 7888")}}
