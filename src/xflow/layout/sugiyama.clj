@@ -11,21 +11,27 @@
     (filter #(not (contains? targets (:id %))) nodes)))
 
 (defn- build-adj-matrix [nodes edges]
-  "Builds adjacency lists for parents and children."
+  "构建邻接矩阵 (Adjacency Matrix)。
+   返回一个包含父节点映射和子节点映射的 Map。
+   :parents {child-id [parent-id ...]}
+   :children {parent-id [child-id ...]}"
   (let [node-ids (set (map :id nodes))
         valid-edges (filter (fn [e] (and (node-ids (:from e)) (node-ids (:to e)))) edges)]
     {:parents (reduce (fn [m e] (update m (:to e) (fnil conj []) (:from e))) {} valid-edges)
      :children (reduce (fn [m e] (update m (:from e) (fnil conj []) (:to e))) {} valid-edges)}))
 
 (defn- barycenter [node neighbors order-map]
-  "Calculates the barycenter (average position) of neighbors."
+  "计算重心 (Barycenter)。
+   根据邻居节点在上一层（或下一层）的顺序 (order) 计算当前节点的理想位置。
+   如果节点没有邻居，则保持当前顺序不变。"
   (if (empty? neighbors)
     (get order-map (:id node) 0) ;; Keep current position if no neighbors
     (/ (reduce + (map #(get order-map % 0) neighbors))
        (count neighbors))))
 
 (defn- sort-layer [layer neighbors-map order-map]
-  "Sorts a layer based on the barycenter of its neighbors."
+  "根据重心理论对层内节点进行排序。
+   这是减少交叉的核心步骤：节点的顺序应该尽可能接近其邻居的平均位置。"
   (let [nodes-with-val
         (map (fn [node]
                (let [neighbors (get neighbors-map (:id node) [])
@@ -34,10 +40,17 @@
              layer)]
     (map :node (sort-by :val nodes-with-val))))
 
-;; --- Phase 1: Layering ---
+;; --- Phase 1: Layering (分层) ---
 
 (defn- remove-cycles [nodes edges]
-  "Returns a set of edges that form a DAG by reversing back-edges."
+  "去环 (Cycle Removal)。
+   Sugiyama 算法要求输入图是有向无环图 (DAG)。
+   该函数使用 DFS 遍历检测环，并将回边 (Back Edges) 反转，使图变为 DAG。
+   算法步骤：
+   1. 计算入度并排序，确保确定性的遍历顺序。
+   2. 使用递归 DFS 维护 visited 和 on-stack 状态。
+   3. 如果遇到 on-stack 的节点，说明发现环，将边标记为 reversed? 并反转方向。
+   4. 否则正常处理。"
   (let [adj (reduce (fn [m e] (update m (:from e) (fnil conj []) e)) {} edges)
 
         ;; Sort nodes to ensure deterministic start order
@@ -89,15 +102,25 @@
     (:edges final-state)))
 
 (defn assign-ranks [nodes edges]
-  "Assigns ranks to nodes using Network Simplex algorithm.
-   Handles cycles by temporarily reversing back-edges."
+  "分配层级 (Rank Assignment)。
+   使用网络单纯形算法 (Network Simplex) 为每个节点分配 :rank 值。
+   这是分层算法中最优的一种，能保证总边长最短。"
   (let [acyclic-edges (remove-cycles nodes edges)]
     (network-simplex/assign-ranks nodes acyclic-edges)))
 
-;; --- Phase 2: Crossing Minimization ---
+;; --- Phase 2: Crossing Minimization (交叉最小化) ---
 
 (defn- crossing-minimization-sweep [ranks max-rank parents children iterations]
-  "Performs the iterative sweep to minimize crossings."
+  "交叉最小化扫描 (Crossing Minimization Sweep)。
+   这是一个启发式算法，通过多轮上下扫描来调整每层节点的顺序，以减少边的交叉。
+   
+   Down Sweep (从上往下):
+     根据上一层 (parents) 的顺序，调整当前层节点的顺序 (重心法)。
+   
+   Up Sweep (从下往上):
+     根据下一层 (children) 的顺序，调整当前层节点的顺序。
+   
+   iterations: 迭代次数，通常 8-12 次即可达到较好效果。"
   (loop [iter 0
          current-ranks ranks
          ;; Build initial order-map: {node-id -> index}
@@ -139,7 +162,9 @@
         (recur (inc iter) up-ranks up-order-map)))))
 
 (defn order-nodes [nodes edges]
-  "Orders nodes within each rank to minimize edge crossings."
+  "节点排序 (Node Ordering)。
+   在确定了每个节点的层级 (:rank) 后，确定其在层内的顺序 (:order)，
+   目标是最小化边交叉数。"
   (let [ranked-nodes (sort-by :rank nodes)
         ranks (group-by :rank ranked-nodes)
         max-rank (apply max (keys ranks))
@@ -150,7 +175,10 @@
 ;; --- Phase 3: Dummy Nodes (Coordinate Assignment Prep) ---
 
 (defn insert-dummy-nodes [nodes edges]
-  "Splits long edges (spanning > 1 rank) into segments with dummy nodes."
+  "插入虚拟节点 (Dummy Nodes)。
+   如果一条边跨越了多层 (rank差 > 1)，需要在中间的每一层插入一个虚拟节点。
+   这样做的目的是将长边分解为一系列单位长度的短边，简化后续的坐标计算和路由。
+   虚拟节点的大小通常为 0。"
   (let [nodes-map (into {} (map (fn [n] [(:id n) n]) nodes))
         ;; Helper to calculate rank span
         span (fn [e]
@@ -203,7 +231,8 @@
                          dummies)))))))
 
 (defn apply-edge-points [original-edges nodes-with-coords]
-  "Constructs full paths for edges, including source/target centers and any dummy node waypoints."
+  "将计算出的坐标应用到原始边上。
+   路径由起点中心、所有虚拟节点位置、终点中心组成。"
   (let [node-map (into {} (map (juxt :id identity) nodes-with-coords))
         edge-dummies (group-by #(:id (:parent-edge %)) (filter :dummy? nodes-with-coords))]
 
@@ -226,6 +255,9 @@
          original-edges)))
 
 (defn straighten-dummy-nodes [edges nodes options]
+  "拉直虚拟节点链 (Straighten Dummy Chains)。
+   由于重心法可能会导致长边的虚拟节点呈锯齿状排列，这个步骤尝试将它们拉直，
+   使长边尽可能垂直（或水平），提升美观度。"
   (let [node-map (into {} (map (juxt :id identity) nodes))
         layout-dir (:direction options "lr")
         horizontal? (or (= layout-dir "lr") (= layout-dir "rl"))
@@ -272,7 +304,15 @@
                   (map find-dummy-chain edges)))))
 
 (defn layout-graph [nodes original-edges options]
-  "Full Sugiyama layout pipeline (mostly for testing or simple cases)."
+  "Sugiyama 布局算法主流程 (Main Pipeline)。
+   这是分层图布局的标准实现，适用于流程图、依赖图等。
+   
+   主要步骤：
+   1. 分层 (Layering): 确定每个节点的 Y 坐标 (Rank)。
+   2. 插入虚拟节点 (Dummy Insertion): 处理跨层长边。
+   3. 排序 (Ordering): 确定每层节点的顺序，减少交叉。
+   4. 坐标分配 (Coordinate Assignment): 确定 X 坐标，平衡节点间距和边的直线性。
+   5. 路由 (Routing): 根据虚拟节点位置生成边的路径点。"
   (let [direction (get options :direction :TB)
         is-horizontal? (or (= direction :LR) (= direction :RL))
 

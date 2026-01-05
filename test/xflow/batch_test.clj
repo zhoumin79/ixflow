@@ -25,3 +25,5 @@
 
 (defn -main [& args]
   (batch-render-templates))
+
+(-main)

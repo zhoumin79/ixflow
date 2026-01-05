@@ -1,0 +1,31 @@
+{:name "Bug Report Flow"
+ :description "Process for reporting and triaging bugs"
+ :theme {:name "default" :mode "light"}
+ :data {:config {:layout "simple" :direction "tb"}
+        :pool-dsl "title Bug Report Flow
+
+Issue type? [shape: oval, icon: file-text]
+Bug [icon: bug]
+Feature [icon: zap]
+Duplicate? [shape: diamond, icon: copy]
+Can be package? [shape: diamond, icon: package]
+Mark duplicate [shape: oval, icon: copy]
+Has repro? [shape: diamond, icon: repeat]
+Issue ready to claim [shape: oval, icon: send]
+Ask for repro [shape: oval, icon: repeat]
+Well specced? [shape: diamond, icon: check-square]
+Define as package [shape: oval, icon: package]
+
+Issue type? > Bug
+Issue type? > Feature
+Bug > Duplicate?
+Feature > Can be package?
+
+Duplicate? > Mark duplicate: Yes
+Duplicate? > Has repro?: No
+Has repro? > Issue ready to claim: Yes
+Has repro? > Ask for repro: No
+Can be package? > Well specced?
+Can be package? > Define as package: Yes
+Well specced? > Issue ready to claim: Yes
+       "}}
