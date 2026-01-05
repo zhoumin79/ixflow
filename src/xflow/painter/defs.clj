@@ -32,11 +32,12 @@
     nil))
 
 (defn gen-defs [config]
-  (let [gradients (:gradients config)]
+  (let [gradients (:gradients config)
+        arrow-color (get-in config [:settings :connector :connector-arrow-colour] "#555")]
     [:defs
      ;; Arrow Marker
      [:marker {:id "arrow" :markerWidth 10 :markerHeight 10 :refX 8 :refY 3 :orient "auto" :markerUnits "strokeWidth"}
-      [:path {:d "M0,0 L0,6 L9,3 z" :fill "#555"}]]
+      [:path {:d "M0,0 L0,6 L9,3 z" :fill arrow-color}]]
 
      ;; Drop Shadow Filter
      [:filter {:id "drop-shadow" :x "-20%" :y "-20%" :width "150%" :height "150%"}
