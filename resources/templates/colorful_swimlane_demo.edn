@@ -1,0 +1,36 @@
+{:name "Colorful Swimlane Demo"
+ :description "Demonstrates distinct lane colors and matching node colors."
+ :theme {:name "colorful-swimlane"}
+ :data {:config {:layout "swimlane" :direction "lr" :title "Multi-Department Process"}
+        :pool-dsl "
+Company {
+  Sales [icon: dollar-sign] {
+    Lead [label: \"New Lead\"]
+    Qualify [label: \"Qualify Lead\"]
+  }
+  Marketing [icon: send] {
+    Campaign [label: \"Email Campaign\"]
+    Webinar [label: \"Host Webinar\"]
+  }
+  Engineering [icon: cpu] {
+    Develop [label: \"Develop Feature\"]
+    Test [label: \"QA Testing\"]
+  }
+  Support [icon: thumbs-up] {
+    Ticket [label: \"Resolve Ticket\"]
+    Feedback [label: \"Collect Feedback\"]
+  }
+  Management [icon: check-circle] {
+    Approve [label: \"Final Approval\"]
+  }
+}
+
+Lead > Qualify
+Qualify > Campaign
+Campaign > Webinar
+Webinar > Develop
+Develop > Test
+Test > Ticket
+Ticket > Feedback
+Feedback > Approve
+"}}

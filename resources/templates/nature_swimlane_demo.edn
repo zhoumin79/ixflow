@@ -1,0 +1,26 @@
+{:name "Nature Swimlane Demo"
+ :description "Demonstrates nature theme with dynamic pool/lane colors."
+ :theme {:name "nature"}
+ :data {:config {:layout "swimlane" :direction "lr" :title "Nature Ecosystem Workflow"}
+        :pool-dsl "
+Ecosystem {
+  Forest [icon: map] {
+    Photosynthesis [label: \"Photosynthesis\"]
+    Growth [label: \"Tree Growth\"]
+  }
+  Ocean [icon: map] {
+    Tides [label: \"Tidal Flow\"]
+    Currents [label: \"Ocean Currents\"]
+  }
+  Mountain [icon: map] {
+    Erosion [label: \"Soil Erosion\"]
+    Formation [label: \"Rock Formation\"]
+  }
+}
+
+Photosynthesis > Growth
+Growth > Erosion
+Erosion > Tides
+Tides > Currents
+Currents > Formation
+"}}

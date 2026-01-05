@@ -278,4 +278,19 @@
    :task-stroke :black
    :connector-stroke :teal800
    :lane-body-font-color :black
+   :lane-body-fill-color :white}
+
+  ;; Colorful Swimlane Theme
+  :colorful-swimlane
+  {:desc "Multi-colored swimlanes with matching node colors"
+   :pool-colors ["#333333"] ;; Dark grey for pool
+   :lane-colors ["#E53935" "#1E88E5" "#43A047" "#FB8C00" "#8E24AA"] ;; Red, Blue, Green, Orange, Purple
+   :lane-nodes ["#FFCDD2" "#BBDEFB" "#C8E6C9" "#FFE0B2" "#E1BEE7"] ;; Light versions
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :white
+   :lane-body-font-color :black
+   :background-fill :white
+   :task-stroke :gray600
+   :connector-stroke :gray400
    :lane-body-fill-color :white}}}

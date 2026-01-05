@@ -2,7 +2,8 @@
  {:task {:default {[:completed :any] {:shape :default}}
          :completed-100 {[:completed 100] {:element-fill-colour "#4CAF50" :element-outline-colour "#2E7D32" :element-font-colour "white"}}
          :high-progress {[:completed 80] {:element-fill-colour "#81C784"}}
-         :low-progress {[:completed 20] {:element-fill-colour "#E57373"}}}
+         :low-progress {[:completed 20] {:element-fill-colour "#E57373"}}
+         :lane-colored-task {[:lane-idx :any] {:fill-color [:lane-nodes :mod-lane-idx]}}}
   :swimlane
   {:base-pool-header
    {[:type :pool]
@@ -11,6 +12,9 @@
    {[:type :lane]
     {:header {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}}
    :lane-body
+   {[:type :lane]
+    {:fill-color "white"}}
+   :lane-body-colorful
    {[:type :lane]
     {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}
    :lane-task

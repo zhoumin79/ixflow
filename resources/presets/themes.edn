@@ -218,6 +218,20 @@
      :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
+  :colorful-swimlane
+  {:colors [:color-themes :colorful-swimlane]
+   :fonts [:fonts :professional]
+   :layout [:layouts :default]
+   :rules
+   {:task [:rules :task :default :lane-colored-task]
+    :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-body]}
+   :shapes
+   {:task
+    {:default [:task :round-rect]
+     :alert [:task :alert]
+     :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
   :wireframe
   {:colors [:color-themes :wireframe]
    :fonts [:fonts :compact]
@@ -227,9 +241,9 @@
     :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-body :lane-task]}
    :shapes
    {:task
-    {:default [:sketch :default]
-     :alert [:sketch :decision]
-     :complete [:sketch :default]}}
+    {:default [:shapes :sketch :default]
+     :alert [:shapes :sketch :decision]
+     :complete [:shapes :sketch :default]}}
    :gradients [:gradients :none]}
 
   ;; === Legacy Themes ===

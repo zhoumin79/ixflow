@@ -82,14 +82,19 @@
             (nth lane-colors (mod idx (count lane-colors)))
             "#FFFFFF"))
 
+        :lane-nodes
+        (let [lane-nodes (:lane-nodes colors)
+              idx (get indices :lane-idx 0)]
+          (if (and lane-nodes (seq lane-nodes))
+            (nth lane-nodes (mod idx (count lane-nodes)))
+            "#FFFFFF"))
+
         ;; Support dynamic pool-lane mapping (e.g. for Nature theme)
         :pool-lane-dynamic
         (let [pool-colors (:pool-colors colors)
               pool-lane-map (:pool-lane-map colors)
               pool-idx (get indices :pool-idx 0)
               lane-idx (get indices :lane-idx 0)
-
-              ;; Determine current pool color to look up its specific lanes
 
               ;; Determine current pool color to look up its specific lanes
               current-pool-color (when (and pool-colors (seq pool-colors))
@@ -114,6 +119,7 @@
   (let [[key val] condition]
     (cond
       (= key :any) true
+      (= val :any) true ;; Support :any wildcard for values
       (= key :mod-pool-idx) (if-let [idx (:pool-idx indices)]
                               (= (mod idx 2) val)
                               false)

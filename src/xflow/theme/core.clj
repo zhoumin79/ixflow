@@ -61,13 +61,19 @@
 
         ;; Calculate lists for rules
         pool-colors-list (or pool-colors [pool-fill])
-        lane-colors-list (if pool-preset-name
-                           ;; If preset exists, ideally we'd want dynamic lane colors per pool
-                           ;; For now, use the derived lane-fill as a single-item list fallback
-                           ;; or try to find a better list if possible.
-                           ;; But since rules.edn uses simple access, we provide a simple list.
-                           [lane-fill]
-                           [lane-fill])
+
+        ;; Extract lane-colors from theme-map if present, otherwise fallback
+        lane-colors-from-theme (:lane-colors theme-map)
+        lane-colors-list (cond
+                           lane-colors-from-theme lane-colors-from-theme
+                           pool-preset-name [lane-fill]
+                           :else [lane-fill])
+
+        ;; Extract lane-nodes colors if present
+        lane-nodes (get theme-map :lane-nodes)
+        lane-nodes-list (if lane-nodes
+                          (mapv #(resolve-color % context) lane-nodes)
+                          [])
 
         ;; Resolve pool-lanes map for dynamic lane coloring based on pool color
         pool-lanes-raw (when pool-preset-name
@@ -80,7 +86,9 @@
                                          (assoc m k-color v-colors))
                                        m))
                                    {}
-                                   pool-lanes-raw))]
+                                   pool-lanes-raw))
+
+        resolved-lane-colors (mapv #(resolve-color % context) lane-colors-list)]
     {:theme "CUSTOM" ;; or pass name
      :settings
      {:background
@@ -137,7 +145,10 @@
      ;; Add colors for rule resolution
      :colors (merge (:colors context)
                     {:pool-colors (mapv #(resolve-color % context) pool-colors-list)
-                     :lane-colors (mapv #(resolve-color % context) lane-colors-list)
+                     :lane-colors resolved-lane-colors
+                     ;; Ensure :pool-lane-dynamic is available for rules that use it
+                     :pool-lane-dynamic resolved-lane-colors
+                     :lane-nodes lane-nodes-list
                      :pool-lane-map pool-lane-map})}))
 
 (defn- resolve-composite-rule [val context]
@@ -167,6 +178,14 @@
              {}
              rules))
 
+(defn- resolve-map-refs [m context]
+  (reduce-kv (fn [acc k v]
+               (assoc acc k (if (map? v)
+                              (resolve-map-refs v context)
+                              (resolve-ref v context))))
+             {}
+             m))
+
 (defn get-theme-config [theme-name]
   (let [context (load-presets)
         theme-key (if (string? theme-name)
@@ -182,11 +201,15 @@
             resolved-rules (resolve-rules (:rules theme-def) context)
             ;; Resolve gradients if present
             gradients-ref (:gradients theme-def)
-            resolved-gradients (when gradients-ref (resolve-ref gradients-ref context))]
-        ;; Merge rules and gradients from the theme definition into the config
+            resolved-gradients (when gradients-ref (resolve-ref gradients-ref context))
+            ;; Resolve shapes if present
+            shapes-ref (:shapes theme-def)
+            resolved-shapes (when shapes-ref (resolve-map-refs shapes-ref context))]
+        ;; Merge rules, gradients, and shapes from the theme definition into the config
         (assoc config
                :rules resolved-rules
-               :gradients resolved-gradients))
+               :gradients resolved-gradients
+               :shapes resolved-shapes))
 
       color-theme-def
       (theme->painter-config color-theme-def context)
