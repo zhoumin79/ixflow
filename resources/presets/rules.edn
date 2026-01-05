@@ -13,6 +13,8 @@
     {:header {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}}
    :lane-body
    {[:type :lane]
+    {:fill-color "white"}
+    [:type :pool]
     {:fill-color "white"}}
    :lane-body-colorful
    {[:type :lane]

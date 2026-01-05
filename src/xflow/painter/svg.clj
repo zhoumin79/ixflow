@@ -146,7 +146,10 @@
       [:g
        ;; Background
        [:rect {:x (:x lane) :y (:y lane) :width (:w lane) :height (:h lane)
-               :fill (or (:fill style) "#ffffff")
+               :fill (or (:fill-color style)
+                         (:lane-background-fill-colour style)
+                         (:fill style)
+                         "#ffffff")
                :stroke (or (:stroke style) "#dee2e6") :stroke-width 1}]
 
        ;; Header
@@ -188,13 +191,19 @@
 
         ;; Group lanes by Pool to calculate relative indices
         pools-map (group-by #(get-pool-name (:id %)) swimlanes)
-        pool-names (sort (keys pools-map))
+
+        ;; Use layout-provided pools list if available to ensure correct order
+        layout-pools (:pools layout)
+        pool-names (if (seq layout-pools)
+                     (map :id layout-pools)
+                     (sort (keys pools-map)))
+
         pool-indices (zipmap pool-names (range))
 
         ;; Enrich Swimlanes with Pool and Lane Indices
         enriched-swimlanes (map (fn [lane]
                                   (let [pool-name (get-pool-name (:id lane))
-                                        pool-idx (get pool-indices pool-name)
+                                        pool-idx (get pool-indices pool-name 0) ;; Default to 0 if not found
                                         siblings (get pools-map pool-name)
                                         ;; Ensure stable relative ordering based on global index or original order
                                         sorted-siblings (sort-by :index siblings)
