@@ -7,10 +7,9 @@
             [xcommon.io :as xio]
             [xflow.theme.core :as theme]))
 
-(defn render [dsl-str output-file]
-  (println "Starting render...")
-  (let [model (parser/parse-dsl dsl-str)
-        _ (println "Parsed DSL. Nodes:" (count (:nodes model)) "Pools:" (count (:pools model)))
+(defn render-model [model output-file]
+  (println "Starting render-model...")
+  (let [_ (println "Model stats - Nodes:" (count (:nodes model)) "Pools:" (count (:pools model)))
         nodes (parser/flatten-nodes (:pools model) (:nodes model))
         _ (println "Flattened nodes:" (count nodes))
 
@@ -49,3 +48,8 @@
     (println "Rendering SVG...")
     (xio/write-file output-file (hiccup/html svg-hiccup))
     (println "Rendered to" output-file)))
+
+(defn render [dsl-str output-file]
+  (println "Parsing DSL...")
+  (let [model (parser/parse-dsl dsl-str)]
+    (render-model model output-file)))

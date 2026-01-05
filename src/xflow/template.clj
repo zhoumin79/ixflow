@@ -23,15 +23,24 @@
         ;; Extract theme name if present
         theme-name (or (-> template :theme :name) "default")
 
-        ;; Merge theme into config to be injected into DSL
-        config (assoc config :theme theme-name)
+        ;; Merge theme into config to be injected into DSL or Model
+        config (assoc config :theme theme-name)]
 
-        ;; Inject config from EDN into DSL string so parser picks it up
-        config-lines (map (fn [[k v]] (str (name k) ": " v)) config)
-        full-dsl (str (str/join "\n" config-lines) "\n" dsl)
+    (if dsl
+      ;; Case 1: DSL string present
+      (let [;; Inject config from EDN into DSL string so parser picks it up
+            config-lines (map (fn [[k v]] (str (name k) ": " v)) config)
+            full-dsl (str (str/join "\n" config-lines) "\n" dsl)
+            cleaned-output-file (str/replace output-file #"\+" "/")]
+        (text2flow/render full-dsl cleaned-output-file))
 
-        cleaned-output-file (str/replace output-file #"\+" "/")]
-    (text2flow/render full-dsl cleaned-output-file)))
+      ;; Case 2: Structured data (nodes/edges) present
+      (let [model {:nodes (:nodes data)
+                   :edges (:edges data)
+                   :pools (:pools data)
+                   :config config}
+            cleaned-output-file (str/replace output-file #"\+" "/")]
+        (text2flow/render-model model cleaned-output-file)))))
 
 (defn -main
   [& args]

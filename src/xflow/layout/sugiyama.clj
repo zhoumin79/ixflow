@@ -165,12 +165,14 @@
   "节点排序 (Node Ordering)。
    在确定了每个节点的层级 (:rank) 后，确定其在层内的顺序 (:order)，
    目标是最小化边交叉数。"
-  (let [ranked-nodes (sort-by :rank nodes)
-        ranks (group-by :rank ranked-nodes)
-        max-rank (apply max (keys ranks))
-        {:keys [parents children]} (build-adj-matrix nodes edges)
-        iterations 8]
-    (crossing-minimization-sweep ranks max-rank parents children iterations)))
+  (if (empty? nodes)
+    nodes
+    (let [ranked-nodes (sort-by :rank nodes)
+          ranks (group-by :rank ranked-nodes)
+          max-rank (apply max (keys ranks))
+          {:keys [parents children]} (build-adj-matrix nodes edges)
+          iterations 8]
+      (crossing-minimization-sweep ranks max-rank parents children iterations))))
 
 ;; --- Phase 3: Dummy Nodes (Coordinate Assignment Prep) ---
 
