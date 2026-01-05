@@ -293,4 +293,19 @@
    :background-fill :white
    :task-stroke :gray600
    :connector-stroke :gray400
+   :lane-body-fill-color :white}
+
+  :strategic-business
+  {:desc "Professional business theme with configurable lane header/body/node colors"
+   :pool-colors ["#2C3E50"]
+   :lane-colors ["#34495E" "#16A085" "#27AE60" "#2980B9" "#8E44AD"]
+   :lane-body-colors ["#F2F4F6" "#E8F6F3" "#EAFAF1" "#EBF5FB" "#F4ECF7"]
+   :lane-nodes ["#AED6F1" "#A3E4D7" "#ABEBC6" "#AED6F1" "#D7BDE2"]
+   :font-color "#2C3E50"
+   :pool-title-font-color :white
+   :lane-title-font-color :white
+   :lane-body-font-color "#34495E"
+   :background-fill :white
+   :task-stroke "#2C3E50"
+   :connector-stroke "#7F8C8D"
    :lane-body-fill-color :white}}}

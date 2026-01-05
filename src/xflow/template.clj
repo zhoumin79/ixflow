@@ -32,3 +32,11 @@
 
         cleaned-output-file (str/replace output-file #"\+" "/")]
     (text2flow/render full-dsl cleaned-output-file)))
+
+(defn -main
+  [& args]
+  (if (>= (count args) 2)
+    (let [[template-name output-file] args]
+      (println "Rendering template:" template-name "to" output-file)
+      (render-template template-name output-file))
+    (println "Usage: clj -M -m xflow.template <template-name> <output-file>")))

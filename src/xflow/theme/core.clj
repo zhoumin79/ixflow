@@ -69,6 +69,10 @@
                            pool-preset-name [lane-fill]
                            :else [lane-fill])
 
+        ;; Extract lane-body-colors if present (NEW)
+        lane-body-colors-from-theme (:lane-body-colors theme-map)
+        lane-body-colors-list (or lane-body-colors-from-theme [lane-fill]) ;; fallback if not defined
+
         ;; Extract lane-nodes colors if present
         lane-nodes (get theme-map :lane-nodes)
         lane-nodes-list (if lane-nodes
@@ -88,7 +92,8 @@
                                    {}
                                    pool-lanes-raw))
 
-        resolved-lane-colors (mapv #(resolve-color % context) lane-colors-list)]
+        resolved-lane-colors (mapv #(resolve-color % context) lane-colors-list)
+        resolved-lane-body-colors (mapv #(resolve-color % context) lane-body-colors-list)]
     {:theme "CUSTOM" ;; or pass name
      :settings
      {:background
@@ -148,6 +153,7 @@
                      :lane-colors resolved-lane-colors
                      ;; Ensure :pool-lane-dynamic is available for rules that use it
                      :pool-lane-dynamic resolved-lane-colors
+                     :lane-body-dynamic resolved-lane-body-colors
                      :lane-nodes lane-nodes-list
                      :pool-lane-map pool-lane-map})}))
 
@@ -220,4 +226,3 @@
         (if (not= theme-key :default)
           (get-theme-config :default)
           nil)))))
-

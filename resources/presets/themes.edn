@@ -232,6 +232,20 @@
      :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
+  :strategic-business
+  {:colors [:color-themes :strategic-business]
+   :fonts [:fonts :professional]
+   :layout [:layouts :default]
+   :rules
+   {:task [:rules :task :default :lane-colored-task]
+    :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-body-dynamic :lane-task]}
+   :shapes
+   {:task
+    {:default [:task :round-rect]
+     :alert [:task :alert]
+     :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
   :wireframe
   {:colors [:color-themes :wireframe]
    :fonts [:fonts :compact]

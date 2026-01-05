@@ -1,0 +1,38 @@
+{:name "Strategic Business Swimlane"
+ :description "Demonstrates the strategic-business theme with configurable lane header, body, and node colors."
+ :theme {:name "strategic-business"}
+ :data {:config {:layout "swimlane" :direction "lr" :title "Strategic Product Launch"}
+        :pool-dsl "
+Enterprise {
+  Strategy [icon: map] {
+    Vision [label: \"Define Vision\"]
+    Roadmap [label: \"Create Roadmap\"]
+  }
+  Product [icon: package] {
+    Specs [label: \"Write Specs\"]
+    Design [label: \"UI/UX Design\"]
+  }
+  Development [icon: code] {
+    Build [label: \"Build Core\"]
+    Integration [label: \"System Integration\"]
+  }
+  Marketing [icon: megaphone] {
+    Launch [label: \"Launch Plan\"]
+    Promotion [label: \"Run Promotion\"]
+  }
+  Sales [icon: trending-up] {
+    Training [label: \"Sales Training\"]
+    Close [label: \"Close Deals\"]
+  }
+}
+
+Vision > Roadmap
+Roadmap > Specs
+Specs > Design
+Design > Build
+Build > Integration
+Integration > Launch
+Launch > Promotion
+Promotion > Training
+Training > Close
+"}}

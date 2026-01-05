@@ -82,6 +82,13 @@
             (nth lane-colors (mod idx (count lane-colors)))
             "#FFFFFF"))
 
+        :lane-body-dynamic
+        (let [lane-body-colors (:lane-body-dynamic colors)
+              idx (get indices :lane-idx 0)]
+          (if (and lane-body-colors (seq lane-body-colors))
+            (nth lane-body-colors (mod idx (count lane-body-colors)))
+            "#FFFFFF"))
+
         :lane-nodes
         (let [lane-nodes (:lane-nodes colors)
               idx (get indices :lane-idx 0)]

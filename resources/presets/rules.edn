@@ -17,6 +17,9 @@
    :lane-body-colorful
    {[:type :lane]
     {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}
+   :lane-body-dynamic
+   {[:type :lane]
+    {:fill-color [:lane-body-dynamic :mod-lane-idx]}}
    :lane-task
    {[:lane-idx :any]
     {:task {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}}
