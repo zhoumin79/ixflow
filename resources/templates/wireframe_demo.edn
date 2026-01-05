@@ -1,0 +1,23 @@
+{:name "Wireframe Demo"
+ :description "A wireframe-style process flow."
+ :theme {:name "wireframe"}
+ :data {:config {:layout "swimlane" :direction "lr" :title "Product Concept Draft"}
+        :pool-dsl "
+User Flow {
+  Concept {
+    Idea [label: \"Sketch Idea\"]
+    Draft [label: \"Rough Draft\"]
+    Review [label: \"Team Review\", shape: \"decision\"]
+  }
+  Design {
+    Wireframe [label: \"Lo-Fi Wireframe\"]
+    Prototype [label: \"Clickable Prototype\"]
+  }
+}
+
+Idea > Draft
+Draft > Review
+Review > Wireframe : Approved
+Review > Idea : Reject
+Wireframe > Prototype
+"}}

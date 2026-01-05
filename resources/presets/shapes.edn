@@ -41,4 +41,23 @@
          :width 16.0
          :height 16.0
          :fill :solid
-         :stroke :thick}}}}
+         :stroke :thick}}
+
+  :sketch
+  {:default {:type :rect
+             :width 20.0
+             :height 15.0
+             :fill :none
+             :stroke :thick
+             :stroke-dasharray "5,5"
+             :corners :square}
+   :decision {:type :diamond
+              :width 18.0
+              :height 18.0
+              :fill :none
+              :stroke :thick}
+   :start {:type :ellipse
+           :width 16.0
+           :height 16.0
+           :fill :none
+           :stroke :thick}}}}

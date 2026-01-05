@@ -98,6 +98,21 @@
    :task-stroke :gray700
    :lane-body-fill-color :gray50}
 
+  ;; 线框图风格
+  :wireframe
+  {:pool-lane-fill-colors {:preset :classic-grayscale}
+   :background-fill :white
+   :font-color :black
+   :pool-title-font-color :black
+   :lane-title-font-color :black
+   :lane-body-font-color :black
+   :task-fill :white
+   :task-stroke :black
+   :element-outline-width 2
+   :connector-stroke :black
+   :connector-width 2
+   :lane-body-fill-color :white}
+
   ;; 无边框主题：适合极简风流程图
   :borderless
   {:pool-lane-fill-colors {:preset :tech-modern}

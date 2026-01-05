@@ -53,7 +53,7 @@
         rx (or override-rx (:rx style) 6)
         ry (or override-ry (:ry style) 6)]
     [:rect (merge {:x x :y y :width w :height h :rx rx :ry ry}
-                  (select-keys style [:fill :stroke :stroke-width :filter]))]))
+                  (select-keys style [:fill :stroke :stroke-width :filter :stroke-dasharray]))]))
 
 (defmethod render-shape :default [node style]
   (render-rect-impl node style))
@@ -67,14 +67,14 @@
 (defmethod render-shape :oval [node style]
   (let [x (:x node) y (:y node) w (or (:w node) 100) h (or (:h node) 50)]
     [:rect (merge {:x x :y y :width w :height h :rx (/ h 2) :ry (/ h 2)}
-                  (select-keys style [:fill :stroke :stroke-width :filter]))]))
+                  (select-keys style [:fill :stroke :stroke-width :filter :stroke-dasharray]))]))
 
 (defmethod render-shape :diamond [node style]
   (let [x (:x node) y (:y node) w (or (:w node) 100) h (or (:h node) 50)
         cx (+ x (/ w 2))
         cy (+ y (/ h 2))]
     [:polygon (merge {:points (str cx "," y " " (+ x w) "," cy " " cx "," (+ y h) " " x "," cy)}
-                     (select-keys style [:fill :stroke :stroke-width :filter]))]))
+                     (select-keys style [:fill :stroke :stroke-width :filter :stroke-dasharray]))]))
 
 (defn- render-node [node config context]
   (let [style (style/resolve-node-style node config context)

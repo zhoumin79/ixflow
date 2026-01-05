@@ -218,6 +218,20 @@
      :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
+  :wireframe
+  {:colors [:color-themes :wireframe]
+   :fonts [:fonts :compact]
+   :layout [:layouts :default]
+   :rules
+   {:task [:rules :task :default]
+    :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-body :lane-task]}
+   :shapes
+   {:task
+    {:default [:sketch :default]
+     :alert [:sketch :decision]
+     :complete [:sketch :default]}}
+   :gradients [:gradients :none]}
+
   ;; === Legacy Themes ===
 
   :greywoof
