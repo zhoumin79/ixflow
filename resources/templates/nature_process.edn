@@ -1,0 +1,38 @@
+{:name "Nature Process Flow"
+ :description "A nature-themed process flow to verify multi-level green color hierarchy."
+ :theme {:name "nature" :mode "light"}
+ :data {:config {:layout "swimlane" :direction "lr" :title "Eco-System Lifecycle"}
+        :pool-dsl "
+Forest System [icon: tree] {
+  Canopy Layer [icon: sun] {
+    Photosynthesis [icon: sun]
+    Growth Cycle [icon: activity]
+  }
+  Floor Layer [icon: layers] {
+    Decomposition [icon: refresh-cw]
+    Root Network [icon: share-2]
+  }
+}
+
+Ocean System [icon: anchor] {
+  Tidal Zone [icon: wind] {
+    Tidal Flow [icon: wind]
+  }
+  Deep Water [icon: aperture] {
+    Marine Life [icon: github]
+  }
+}
+
+River System [icon: map] {
+  Flow Dynamics [icon: activity]
+}
+
+// Connections
+Photosynthesis > Growth Cycle
+Growth Cycle > Decomposition
+Decomposition > Root Network
+Root Network > Photosynthesis : Nutrient Cycle
+
+Tidal Flow > Marine Life
+Marine Life > Flow Dynamics
+"}}

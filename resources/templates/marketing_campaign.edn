@@ -1,0 +1,31 @@
+{:name "Marketing Campaign Flow"
+ :description "A vibrant marketing campaign workflow using the Ruby Red theme."
+ :theme {:name "rubyred" :mode "light"}
+ :data {:config {:layout "simple" :direction "tb" :title "New Product Launch"}
+        :pool-dsl "
+// Concept Phase
+Brainstorming [icon: zap]
+Market Research [icon: search]
+Define Persona [icon: user]
+
+// Creation Phase
+Content Creation [icon: edit]
+Design Assets [icon: image]
+Review [type: gateway, icon: check-circle]
+
+// Launch Phase
+Launch Campaign [icon: rocket]
+Monitor Metrics [icon: activity]
+
+// Connections
+Brainstorming > Market Research
+Market Research > Define Persona
+Define Persona > Content Creation
+Content Creation > Design Assets
+Design Assets > Review
+
+Review > Launch Campaign : Approved
+Review --> Content Creation : Needs Revision
+
+Launch Campaign > Monitor Metrics
+"}}

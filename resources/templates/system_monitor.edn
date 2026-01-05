@@ -1,0 +1,36 @@
+{:name "System Monitor Flow"
+ :description "A system monitoring and alert response flow using the Dark theme."
+ :theme {:name "dark" :mode "dark"}
+ :data {:config {:layout "swimlane" :direction "lr" :title "Incident Response System"}
+        :pool-dsl "
+Monitoring System [icon: server] {
+  Log Collection [icon: database]
+  Metric Analysis [icon: activity]
+  Alert Trigger [type: gateway, icon: alert-triangle]
+}
+
+On-Call Engineer [icon: user] {
+  Receive Pager [icon: smartphone]
+  Triage Issue [icon: search]
+  Fix Deployed [icon: check-circle]
+}
+
+Platform Team [icon: users] {
+  Root Cause Analysis [icon: file-text]
+  System Update [icon: upload]
+}
+
+// Flow
+Log Collection > Metric Analysis
+Metric Analysis > Alert Trigger
+
+Alert Trigger > Receive Pager : Critical Threshold Exceeded
+Alert Trigger --> Log Collection : Normal
+
+Receive Pager > Triage Issue
+Triage Issue > Fix Deployed : Quick Fix
+Triage Issue > Root Cause Analysis : Complex Issue
+
+Root Cause Analysis > System Update
+System Update > Fix Deployed
+"}}

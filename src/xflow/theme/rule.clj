@@ -63,11 +63,51 @@
 (defn merge-rule-configs [base-config & override-configs]
   (apply merge-with merge base-config override-configs))
 
-(defn resolve-rule-value [rule-value context indices]
+(defn resolve-rule-value [rule-value config indices]
   (if (vector? rule-value)
-    (let [[category key] rule-value]
-      ;; TODO: Implement actual lookup logic if needed, currently just returns keyword
-      rule-value)
+    (let [[lookup-key index-op] rule-value
+          colors (:colors config)]
+      (case lookup-key
+        :pool-colors
+        (let [pool-colors (:pool-colors colors)
+              idx (get indices :pool-idx 0)]
+          (if (and pool-colors (seq pool-colors))
+            (nth pool-colors (mod idx (count pool-colors)))
+            "#FFFFFF"))
+
+        :lane-colors
+        (let [lane-colors (:lane-colors colors)
+              idx (get indices :lane-idx 0)]
+          (if (and lane-colors (seq lane-colors))
+            (nth lane-colors (mod idx (count lane-colors)))
+            "#FFFFFF"))
+
+        ;; Support dynamic pool-lane mapping (e.g. for Nature theme)
+        :pool-lane-dynamic
+        (let [pool-colors (:pool-colors colors)
+              pool-lane-map (:pool-lane-map colors)
+              pool-idx (get indices :pool-idx 0)
+              lane-idx (get indices :lane-idx 0)
+
+              ;; Determine current pool color to look up its specific lanes
+
+              ;; Determine current pool color to look up its specific lanes
+              current-pool-color (when (and pool-colors (seq pool-colors))
+                                   (nth pool-colors (mod pool-idx (count pool-colors))))
+
+              ;; Find specific lane colors for this pool
+              specific-lane-colors (get pool-lane-map current-pool-color)]
+
+          (if (and specific-lane-colors (seq specific-lane-colors))
+            (nth specific-lane-colors (mod lane-idx (count specific-lane-colors)))
+            ;; Fallback to standard lane colors or white
+            (let [std-lanes (:lane-colors colors)]
+              (if (and std-lanes (seq std-lanes))
+                (nth std-lanes (mod lane-idx (count std-lanes)))
+                "#FFFFFF"))))
+
+        ;; Default: return original if not matched
+        rule-value))
     rule-value))
 
 (defn match-condition? [condition indices node]

@@ -31,7 +31,7 @@
    :layout [:layouts :default],
    :rules
    {:task [:rules :task :completed-100],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
@@ -44,20 +44,20 @@
    :layout [:layouts :detailed],
    :rules
    {:task [:rules :task :completed-100 :high-progress],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
      :alert [:task :alert],
      :complete [:task :complete]}},
    :gradients [:gradients :professional]},
-  :pool-task-demo
+  :base-pool-task-demo
   {:colors [:color-themes :dark],
    :fonts [:fonts :professional],
    :layout [:layouts :best],
    :rules
    {:task [:rules :task :completed-100],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :rect],
@@ -78,7 +78,7 @@
    :layout [:layouts :best],
    :rules
    {:task [:rules :task :completed-100],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
@@ -106,7 +106,7 @@
    {:independent-task {:task-shape-pos :below, :pos "bottom"}},
    :rules
    {:task [:rules :task :completed-100],
-    :swimlane [:rules :swimlane :pool-task]},
+    :swimlane [:rules :swimlane :base-pool-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
@@ -119,7 +119,7 @@
    :layout [:layouts :classic],
    :rules
    {:task [:rules :task :completed-100],
-    :swimlane [:rules :swimlane :pool-header :pool-task]},
+    :swimlane [:rules :swimlane :base-pool-header :base-pool-task]},
    :shapes
    {:task
     {:default [:task :rect],
@@ -132,7 +132,7 @@
    :layout [:layouts :detailed],
    :rules
    {:task [:rules :task :completed-100 :high-progress],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
@@ -158,7 +158,7 @@
    :layout [:layouts :default],
    :rules
    {:task [:rules :task :completed-100],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
@@ -196,13 +196,27 @@
    :layout [:layouts :detailed],
    :rules
    {:task [:rules :task :completed-100 :high-progress],
-    :swimlane [:rules :swimlane :pool-header :lane-task]},
+    :swimlane [:rules :swimlane :base-pool-header :lane-task]},
    :shapes
    {:task
     {:default [:task :round-rect],
      :alert [:task :alert],
      :complete [:task :complete]}},
    :gradients [:gradients :professional]}
+
+  :nature
+  {:colors [:color-themes :nature]
+   :fonts [:fonts :professional]
+   :layout [:layouts :default]
+   :rules
+   {:task [:rules :task :completed-100]
+    :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-body :lane-task]}
+   :shapes
+   {:task
+    {:default [:task :round-rect]
+     :alert [:task :alert]
+     :complete [:task :complete]}}
+   :gradients [:gradients :none]}
 
   ;; === Legacy Themes ===
 
@@ -211,7 +225,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -220,7 +234,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -229,7 +243,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -238,7 +252,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -247,7 +261,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -256,7 +270,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -265,7 +279,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -274,7 +288,7 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
@@ -283,6 +297,6 @@
    :fonts [:fonts :professional]
    :layout [:layouts :detailed]
    :rules {:task [:rules :task :completed-100]
-           :swimlane [:rules :swimlane :pool-header :lane-task]}
+           :swimlane [:rules :swimlane :base-pool-header :lane-task]}
    :shapes {:task {:default [:task :round-rect] :complete [:task :complete]}}
    :gradients [:gradients :none]}}}

@@ -109,9 +109,7 @@
               (let [current-path (conj path pool)
                     nodes (:nodes pool)]
                 ;; Add the pool itself as a node
-                (swap! all-nodes conj (assoc pool
-                                             :swimlane-id (str/join " / " (map :name path))
-                                             :swimlane-path (mapv :name path)))
+                (swap! all-nodes conj (assoc pool :swimlane-id (str/join " / " (map :name current-path)) :swimlane-path (mapv :name current-path)))
                 (doseq [item nodes]
                   (if (= (:type item) :pool)
                     (process-pool item current-path)

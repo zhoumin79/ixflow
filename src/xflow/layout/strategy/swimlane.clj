@@ -59,8 +59,11 @@
 
     (map-indexed (fn [idx lane-id]
                    (let [lane-name (last (str/split lane-id #" / "))
-                         pool (find-pool-by-name pools lane-name)]
+                         pool (find-pool-by-name pools lane-name)
+                         is-root? (some #(= (:name %) lane-name) pools)
+                         type (if is-root? :pool :lane)]
                      {:id lane-id
+                      :type type
                       :index idx
                       :nodes (get lanes lane-id)
                       :label lane-name
@@ -141,12 +144,14 @@
                          size (:size l)]
                      (if is-horizontal?
                        ;; Horizontal strips (Rows)
-                       {:x (double 0) :y (double offset)
+                       {:id (:id l) ;; ADDED ID
+                        :x (double 0) :y (double offset)
                         :w (double total-width) :h (double size)
                         :label (:label l) :index (:index l) :vertical? false
                         :props (:props l)}
                        ;; Vertical strips (Cols)
-                       {:x (double offset) :y (double 0)
+                       {:id (:id l) ;; ADDED ID
+                        :x (double offset) :y (double 0)
                         :w (double size) :h (double total-height)
                         :label (:label l) :index (:index l) :vertical? true
                         :props (:props l)})))

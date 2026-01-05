@@ -4,16 +4,19 @@
          :high-progress {[:completed 80] {:element-fill-colour "#81C784"}}
          :low-progress {[:completed 20] {:element-fill-colour "#E57373"}}}
   :swimlane
-  {:pool-header
-   {[:pool-idx :any]
+  {:base-pool-header
+   {[:type :pool]
     {:header {:fill-color [:pool-colors :mod-pool-idx]}}}
    :lane-header
-   {[:lane-idx :any]
-    {:header {:fill-color [:lane-colors :mod-lane-idx]}}}
+   {[:type :lane]
+    {:header {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}}
+   :lane-body
+   {[:type :lane]
+    {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}
    :lane-task
    {[:lane-idx :any]
-    {:task {:fill-color [:lane-colors :mod-lane-idx]}}}
-   :pool-task
+    {:task {:fill-color [:pool-lane-dynamic :mod-lane-idx]}}}
+   :base-pool-task
    {[:pool-idx :any]
     {:task {:fill-color [:pool-colors :mod-pool-idx]}}}
    :default {[:pool-idx :any] {:header {:fill-color :default}}}}

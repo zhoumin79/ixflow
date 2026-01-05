@@ -78,7 +78,6 @@
 
 (defn- render-node [node config context]
   (let [style (style/resolve-node-style node config context)
-        _ (when (= (:id node) "start") (println "DEBUG: Style for start node:" (keys style) "Fill:" (:fill style)))
         shadow? (not (= (:type node) :group))
         style (cond-> style
                 shadow? (assoc :filter "url(#drop-shadow)"))
@@ -180,14 +179,43 @@
         group-nodes (filter group-node? nodes)
         atomic-nodes (remove group-node? nodes)
 
-        ;; Build Context for rules
-        lane-map (zipmap (map :id swimlanes) swimlanes)
-        get-context (fn [node]
-                      (let [lane (get lane-map (:lane-id node))
-                            pool (get lane-map (:parent-id lane))]
-                        {:lane-idx (:index lane)
-                         :pool-idx (:index pool)
-                         :completed (-> node :props :completed)}))]
+        ;; Helper to extract Pool Name from Lane ID (convention: "Pool / Lane")
+        get-pool-name (fn [lane-id]
+                        (if (and lane-id (str/includes? lane-id " / "))
+                          (first (str/split lane-id #" / "))
+                          (or lane-id "Default")))
+
+        ;; Group lanes by Pool to calculate relative indices
+        pools-map (group-by #(get-pool-name (:id %)) swimlanes)
+        pool-names (sort (keys pools-map))
+        pool-indices (zipmap pool-names (range))
+
+        ;; Enrich Swimlanes with Pool and Lane Indices
+        enriched-swimlanes (map (fn [lane]
+                                  (let [pool-name (get-pool-name (:id lane))
+                                        pool-idx (get pool-indices pool-name)
+                                        siblings (get pools-map pool-name)
+                                        ;; Ensure stable relative ordering based on global index or original order
+                                        sorted-siblings (sort-by :index siblings)
+                                        lane-idx (.indexOf sorted-siblings lane)]
+                                    (assoc lane :pool-idx pool-idx
+                                           :lane-idx lane-idx)))
+                                swimlanes)
+
+        ;; Build Lookup Map
+        lane-map (zipmap (map :id enriched-swimlanes) enriched-swimlanes)
+
+        ;; Context Builder
+        get-context (fn [obj]
+                      (if (:swimlane-id obj)
+                        ;; Node Context
+                        (let [lane (get lane-map (:swimlane-id obj))]
+                          {:pool-idx (or (:pool-idx lane) 0)
+                           :lane-idx (or (:lane-idx lane) 0)
+                           :completed (-> obj :props :completed)})
+                        ;; Swimlane Context
+                        {:pool-idx (or (:pool-idx obj) 0)
+                         :lane-idx (or (:lane-idx obj) 0)}))]
 
     [:svg {:xmlns "http://www.w3.org/2000/svg"
            :width width :height (+ height (if title 50 0))
@@ -202,8 +230,8 @@
      [:g {:transform (if title "translate(0, 50)" "translate(0, 0)")}
 
       ;; Swimlanes
-      (for [lane swimlanes]
-        (render-swimlane lane config (get-context lane))) ;; Pass context to swimlane too? lane context is simpler
+      (for [lane enriched-swimlanes]
+        (render-swimlane lane config (get-context lane)))
 
       ;; Groups
       (for [n group-nodes]

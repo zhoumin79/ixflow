@@ -117,13 +117,14 @@
   :dark
   {:pool-lane-fill-colors {:preset :dark-professional}
    :background-fill :slate900
-   :font-color :white
-   :pool-title-font-color :black
-   :lane-title-font-color :white
-   :lane-body-font-color :white
-   :task-fill :slate700
+   :font-color :slate100
+   :pool-title-font-color :white
+   :lane-title-font-color :slate100
+   :lane-body-font-color :slate200
+   :task-fill :slate800
    :task-stroke :slate500
-   :lane-body-fill-color :slate800}
+   :connector-stroke :slate400
+   :lane-body-fill-color :slate900}
 
   ;; business-classic 主题：经典商务蓝调，专业配色
   :business-classic
@@ -148,6 +149,7 @@
    :background-fill :white
    :task-fill :white
    :task-stroke :black
+   :connector-stroke :gray600
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -161,6 +163,7 @@
    :background-fill :white
    :task-fill :white
    :task-stroke :black
+   :connector-stroke :blue900
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -174,6 +177,7 @@
    :background-fill :white
    :task-fill "#F6B26B"
    :task-stroke :black
+   :connector-stroke :orange900
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -187,6 +191,7 @@
    :background-fill :white
    :task-fill "#93C47D"
    :task-stroke :black
+   :connector-stroke :green900
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -200,6 +205,7 @@
    :background-fill :white
    :task-fill "#FFF68F"
    :task-stroke :black
+   :connector-stroke "#8B6508"
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -213,6 +219,7 @@
    :background-fill :white
    :task-fill "#B19CD9"
    :task-stroke :black
+   :connector-stroke :purple900
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -226,6 +233,7 @@
    :background-fill :white
    :task-fill "#FF869A"
    :task-stroke :black
+   :connector-stroke "#8B0033"
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -239,6 +247,7 @@
    :background-fill :white
    :task-fill "#00CCCC"
    :task-stroke :black
+   :connector-stroke :teal900
    :lane-body-font-color :black
    :lane-body-fill-color :white}
 
@@ -252,5 +261,6 @@
    :background-fill :white
    :task-fill "#80CBC4"
    :task-stroke :black
+   :connector-stroke :teal800
    :lane-body-font-color :black
    :lane-body-fill-color :white}}}
