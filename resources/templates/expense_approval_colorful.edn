@@ -1,0 +1,72 @@
+{:name "Expense Approval Colorful"
+ :description "Colorful swimlane demo with borderless nodes"
+ :theme {:name "colorful-borderless" :mode "light"}
+ :data {:config {:layout "swimlane" :direction "lr"}
+        :pool-dsl "title Expense Submission and Approval Flow
+
+\"Expense Process\" {
+  User {
+    Login [icon: log-in]
+    Access confirmed [type: event, icon: check-circle]
+    Start new expense report [icon: file-plus]
+    Upload receipts [icon: upload]
+    Reimbursed [type: event, icon: dollar-sign]
+    User rejected [type: event, label: Rejected, icon: x-circle]
+  }
+
+  System {
+    OCR extract date & amount [icon: calendar]
+    Check amount [type: gateway, icon: filter]
+    Auto-approve? [type: gateway, icon: check]
+    Auto-approved [type: event, icon: thumbs-up]
+    Send to manager [icon: send]
+    Process reimbursement [icon: credit-card]
+  }
+
+  Manager {
+    Review expense [icon: eye]
+    Approve? [type: gateway, icon: check]
+    Approved [type: event, icon: thumbs-up]
+    Rejected [type: event, icon: x-circle]
+  }
+}
+
+// Connections within User lane
+Login > Access confirmed
+Access confirmed > Start new expense report
+Start new expense report > Upload receipts
+
+// User to System
+Upload receipts -- OCR extract date & amount : Receipts
+
+// System lane
+OCR extract date & amount > Check amount
+Check amount > Auto-approve? : Amount < $500
+Check amount --> Rejected : Amount > $500
+
+// Auto-approve gateway
+Auto-approve? > Auto-approved : Amount < $50
+Auto-approve? > Send to manager : $51–$500
+
+// Auto-approved to reimbursement
+Auto-approved > Process reimbursement
+
+// Send to manager to Manager lane
+Send to manager -- Review expense : Expense for approval
+
+// Manager lane
+Review expense > Approve?
+Approve? > Approved : Yes
+Approve? > Rejected : No
+
+// Approved to System
+Approved --> Process reimbursement : Approval
+
+// Process reimbursement to User lane
+Process reimbursement --> Reimbursed : Reimbursement
+Upload receipts > Reimbursed
+
+// Rejected to User lane
+Rejected --> Reimbursed : Notify user
+Upload receipts > User rejected
+"}}

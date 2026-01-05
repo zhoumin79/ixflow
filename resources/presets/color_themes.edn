@@ -15,22 +15,30 @@
 
   ;; default 主题：作为"最全"兜底主题，使用现代科技风配色
   :default
-  {:pool-lane-fill-colors {:preset :tech-modern}
+  {:desc "Modern professional default theme with clean slate/white palette"
+   :pool-lane-fill-colors {:preset :tech-modern}
    ;; 基础与背景
    :background-fill :white
    ;; 文本颜色（按组件语义区分）
-   :font-color :black
+   :font-color "#1E293B" ; Slate 800
    :pool-title-font-color :white
-   :lane-title-font-color :black
-   :lane-body-font-color :black
+   :lane-title-font-color "#334155" ; Slate 700
+   :lane-body-font-color "#334155"
+
+   ;; 结构颜色
+   :pool-fill-color "#334155" ; Slate 700
+   :lane-fill-color "#F1F5F9" ; Slate 100
+   :lane-body-fill-color :white
+
    ;; 组件填充/描边
-   :task-fill :blue500
-   :task-stroke :gray600
+   :task-fill :white ; Clean look, no more blue blobs
+   :task-stroke "#3B82F6" ; Blue 500 stroke for definition
+   :element-outline-width 2 ; Slightly thicker stroke for modern feel
+
    ;; 连接线样式
-   :connector-stroke :gray400
+   :connector-stroke "#64748B" ; Slate 500
    :connector-width 1
-   :connector-opacity 0.25
-   :lane-body-fill-color :gray50}
+   :connector-opacity 1.0}
 
   ;; original-design 主题：使用原始设计的四色系统（橙、绿、蓝、紫）
   :original-design
@@ -292,6 +300,22 @@
    :lane-body-font-color :black
    :background-fill :white
    :task-stroke :gray600
+   :connector-stroke :gray400
+   :lane-body-fill-color :white}
+
+  ;; Colorful Borderless Theme
+  :colorful-borderless
+  {:desc "Colorful swimlanes with borderless nodes"
+   :pool-colors ["#333333"]
+   :lane-colors ["#E53935" "#1E88E5" "#43A047" "#FB8C00" "#8E24AA"]
+   :lane-nodes ["#FFCDD2" "#BBDEFB" "#C8E6C9" "#FFE0B2" "#E1BEE7"]
+   :font-color :black
+   :pool-title-font-color :white
+   :lane-title-font-color :white
+   :lane-body-font-color :black
+   :background-fill :white
+   :task-stroke "none"
+   :element-outline-width 0
    :connector-stroke :gray400
    :lane-body-fill-color :white}
 

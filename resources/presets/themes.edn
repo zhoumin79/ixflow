@@ -232,6 +232,20 @@
      :complete [:task :complete]}}
    :gradients [:gradients :none]}
 
+  :colorful-borderless
+  {:colors [:color-themes :colorful-borderless]
+   :fonts [:fonts :professional]
+   :layout [:layouts :default]
+   :rules
+   {:task [:rules :task :default :lane-colored-task]
+    :swimlane [:rules :swimlane :base-pool-header :lane-header :lane-body]}
+   :shapes
+   {:task
+    {:default [:task :round-rect]
+     :alert [:task :alert]
+     :complete [:task :complete]}}
+   :gradients [:gradients :none]}
+
   :strategic-business
   {:colors [:color-themes :strategic-business]
    :fonts [:fonts :professional]

@@ -51,9 +51,10 @@
 (defn- render-rect-impl [node style & [override-rx override-ry]]
   (let [x (:x node) y (:y node) w (or (:w node) 100) h (or (:h node) 50)
         rx (or override-rx (:rx style) 6)
-        ry (or override-ry (:ry style) 6)]
-    [:rect (merge {:x x :y y :width w :height h :rx rx :ry ry}
-                  (select-keys style [:fill :stroke :stroke-width :filter :stroke-dasharray]))]))
+        ry (or override-ry (:ry style) 6)
+        result [:rect (merge {:x x :y y :width w :height h :rx rx :ry ry}
+                             (select-keys style [:fill :stroke :stroke-width :filter :stroke-dasharray]))]]
+    result))
 
 (defmethod render-shape :default [node style]
   (render-rect-impl node style))
