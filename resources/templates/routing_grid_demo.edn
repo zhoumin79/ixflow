@@ -1,0 +1,28 @@
+{:name "Grid Routing Demo"
+ :description "Demonstrating A* grid routing with obstacle avoidance"
+ :theme {:name "default"}
+ :data {:config {:layout "simple"
+                 :direction "tb"
+                 :routing "grid"
+                 :padding 20}
+        :pool-dsl "
+        Start [shape: oval]
+        
+        // Force a wide structure
+        Left Node [shape: rect]
+        Middle Obstacle [shape: diamond, color: #ffcccc]
+        Right Node [shape: rect]
+        
+        End [shape: oval]
+        
+        Start > Left Node
+        Start > Middle Obstacle
+        Start > Right Node
+        
+        // This edge must bypass Middle Obstacle if layout places them horizontally
+        Left Node > Right Node
+        
+        Left Node > End
+        Middle Obstacle > End
+        Right Node > End
+"}}

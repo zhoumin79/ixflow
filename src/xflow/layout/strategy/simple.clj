@@ -38,5 +38,51 @@
      :height height
      :swimlanes []}))
 
+(defn- rotate-point [pt]
+  (if (map? pt)
+    (assoc pt :x (:y pt) :y (:x pt))
+    [(second pt) (first pt)]))
+
+(defn- rotate-nodes [nodes]
+  (mapv (fn [n]
+          (assoc n
+                 :x (:y n)
+                 :y (:x n)
+                 :w (:h n)
+                 :h (:w n)))
+        nodes))
+
+(defn- rotate-edges [edges]
+  (mapv (fn [e]
+          (if (:points e)
+            (assoc e :points (mapv rotate-point (:points e)))
+            e))
+        edges))
+
 (defn layout [nodes edges options]
-  (assign-coordinates nodes edges options))
+  (let [direction (:direction options "tb")
+        horizontal? (or (= direction "lr") (= direction "rl"))
+
+        ;; 1. Prepare nodes (swap w/h if horizontal)
+        input-nodes (if horizontal?
+                      (mapv #(assoc % :w (:h %) :h (:w %)) nodes)
+                      nodes)
+
+        ;; 2. Run Layout (Always Top-Down)
+        result (assign-coordinates input-nodes edges options)
+
+        ;; 3. Transform Result (swap x/y if horizontal)
+        final-nodes (if horizontal?
+                      (rotate-nodes (:nodes result))
+                      (:nodes result))
+        final-edges (if horizontal?
+                      (rotate-edges (:edges result))
+                      (:edges result))
+        width (if horizontal? (:height result) (:width result))
+        height (if horizontal? (:width result) (:height result))]
+
+    (assoc result
+           :nodes final-nodes
+           :edges final-edges
+           :width width
+           :height height)))

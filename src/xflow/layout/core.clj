@@ -9,6 +9,7 @@
             [xflow.layout.routing.ortho :as ortho]
             [xflow.layout.routing.spline :as spline]
             [xflow.layout.routing.architecture :as architecture]
+            [xflow.layout.routing.grid :as grid]
             [xflow.theme.rule :as rule]
             [xflow.geometry :as geo]))
 
@@ -190,6 +191,12 @@
         content-nodes (filterv #(not= (:type %) :pool) nodes)]
     (assign-coordinates content-nodes edges pools options)))
 
+(defmethod layout-strategy "preset" [ctx]
+  {:nodes (:nodes ctx)
+   :edges (:edges ctx)
+   :width 0 ;; Will be calculated in normalize
+   :height 0})
+
 (defmethod layout-strategy :default [ctx]
   (simple/layout (:nodes ctx) (:edges ctx) (:options ctx)))
 
@@ -216,6 +223,8 @@
                    "spline" spline/route-edges
                    "ortho" ortho/route-edges
                    "architecture" architecture/route-edges
+                   "grid" grid/route-edges
+                   "astar" grid/route-edges
                    manhattan/route-edges)
 
         hidden-edge? (fn [e]

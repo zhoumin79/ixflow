@@ -1,0 +1,11 @@
+{:name "Grid Routing Obstacle Test"
+ :description "Testing grid routing obstacle avoidance with preset positions"
+ :theme {:name "default"}
+ :data {:config {:layout "preset"
+                 :routing "grid"
+                 :padding 50
+                 :direction "lr"}
+        :nodes [{:id "start" :x 50 :y 200 :w 100 :h 50 :label "Start"}
+                {:id "end" :x 600 :y 200 :w 100 :h 50 :label "End"}
+                {:id "obs1" :x 300 :y 100 :w 50 :h 250 :label "Wall" :type "node"}]
+        :edges [{:id "e1" :from "start" :to "end" :label "Detour"}]}}
