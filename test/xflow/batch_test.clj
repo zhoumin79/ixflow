@@ -2,7 +2,10 @@
   (:require [clojure.test :refer :all]
             [clojure.java.io :as io]
             [xflow.template :as template]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [xflow.parser-refactor-test]
+            [xflow.layout.swimlane-test]
+            [xflow.layout.routing-test]))
 
 (deftest batch-render-templates
   (let [templates-dir (io/file "resources/templates")
@@ -24,6 +27,12 @@
         (is (> (.length (io/file output-file)) 0) (str "Output file should not be empty: " output-file))))))
 
 (defn -main [& args]
-  (batch-render-templates))
+  (println "\n=== Running New Unit Tests ===")
+  (run-tests 'xflow.parser-refactor-test
+             'xflow.layout.swimlane-test
+             'xflow.layout.routing-test)
+
+  (println "\n=== Running Batch Render Tests ===")
+  (run-tests 'xflow.batch-test))
 
 (-main)

@@ -14,19 +14,11 @@
 
 ;; --- 辅助函数 (Helpers) ---
 
-;; --- 辅助函数 (Helpers) ---
-
 ;; Replaced by geo/swap-xy
 (def swap-node-dims geo/swap-xy)
 
 ;; Replaced by geo/swap-xy
 (def swap-coords geo/swap-xy)
-
-;; Removed swap-edge-points as it is redefined above
-;; (defn- swap-edge-points ...)
-
-;; Removed swap-coords as it is replaced by def above
-;; (defn- swap-coords ...)
 
 (defn- swap-edge-points [edges]
   (geo/swap-edges-xy edges))
@@ -74,6 +66,23 @@
   ;; 使用 Network Simplex 算法进行全局分层
   (network-simplex/assign-ranks nodes edges))
 
+(defn calculate-rank-offsets [nodes is-horizontal?]
+  (let [ranks (group-by :rank nodes)
+        sorted-ranks (sort (keys ranks))]
+    (first (reduce (fn [[offsets current-offset] rank]
+                     (let [rank-nodes (get ranks rank)
+                           ;; If horizontal (LR), rank spacing depends on node WIDTH
+                           ;; If vertical (TB), rank spacing depends on node HEIGHT
+                           dim-key (if is-horizontal? :w :h)
+                           default-dim (if is-horizontal? NODE-WIDTH NODE-HEIGHT)
+                           max-dim (if (seq rank-nodes)
+                                     (apply max (map #(if (:dummy? %) 10 (or (get % dim-key) default-dim)) rank-nodes))
+                                     default-dim)]
+                       [(assoc offsets rank current-offset)
+                        (+ current-offset max-dim LAYER-SEP)]))
+                   [{} HEADER-SPACE]
+                   sorted-ranks))))
+
 (defn calculate-lane-dimensions [lanes mode]
   (let [is-horizontal? (= mode "horizontal")]
     (map (fn [lane]
@@ -81,7 +90,9 @@
                  ranks (group-by :rank nodes)
                  max-size (if (seq ranks)
                             (apply max (map (fn [[r ns]]
-                                              (let [node-sizes (map #(if (:dummy? %) 10 (or (if is-horizontal? (:h %) (:w %)) 0)) ns)
+                                              (let [stack-dim-key (if is-horizontal? :h :w)
+                                                    default-stack-dim (if is-horizontal? NODE-HEIGHT NODE-WIDTH)
+                                                    node-sizes (map #(if (:dummy? %) 10 (or (get % stack-dim-key) default-stack-dim)) ns)
                                                     total (reduce + node-sizes)
                                                     seps (* (dec (count ns)) NODE-SEP)]
                                                 (+ total seps)))
@@ -98,7 +109,9 @@
         lane-ids (map :id lanes)
         lane-sizes (map :size lanes)
         lane-offsets (reductions + 0 lane-sizes)
-        lane-offset-map (zipmap lane-ids lane-offsets)]
+        lane-offset-map (zipmap lane-ids lane-offsets)
+
+        rank-offsets (calculate-rank-offsets nodes is-horizontal?)]
 
     (map (fn [node]
            (let [lane-id (:swimlane-id node)
@@ -111,29 +124,32 @@
                                                   nodes))
                  idx (.indexOf (vec siblings) node)
 
-                 sizes (map #(if (:dummy? %) 10 (or (if is-horizontal? (:h %) (:w %)) 0)) siblings)
+                 stack-dim-key (if is-horizontal? :h :w)
+                 default-stack-dim (if is-horizontal? NODE-HEIGHT NODE-WIDTH)
+
+                 sizes (map #(if (:dummy? %) 10 (or (get % stack-dim-key) default-stack-dim)) siblings)
                  total-size (+ (reduce + sizes) (* (dec (count siblings)) NODE-SEP))
 
                  start-pos (+ lane-pos (/ (- lane-size total-size) 2))
 
                  prev-siblings (take idx siblings)
-                 prev-size (+ (reduce + (map #(if (:dummy? %) 10 (or (if is-horizontal? (:h %) (:w %)) 0)) prev-siblings))
+                 prev-size (+ (reduce + (map #(if (:dummy? %) 10 (or (get % stack-dim-key) default-stack-dim)) prev-siblings))
                               (* idx NODE-SEP))
 
                  pos (+ start-pos prev-size)
-                 rank-pos (+ (* rank (+ (if is-horizontal? NODE-WIDTH NODE-HEIGHT) LAYER-SEP)) HEADER-SPACE)]
+                 rank-pos (get rank-offsets rank 0)]
 
              (if is-horizontal?
                (assoc node
                       :y (double pos)
                       :x (double rank-pos)
-                      :w (double (if (:dummy? node) 0 (or (:w node) 0)))
-                      :h (double (if (:dummy? node) 0 (or (:h node) 0))))
+                      :w (double (if (:dummy? node) 0 (or (:w node) NODE-WIDTH)))
+                      :h (double (if (:dummy? node) 0 (or (:h node) NODE-HEIGHT))))
                (assoc node
                       :x (double pos)
                       :y (double rank-pos)
-                      :w (double (if (:dummy? node) 0 (or (:w node) 0)))
-                      :h (double (if (:dummy? node) 0 (or (:h node) 0)))))))
+                      :w (double (if (:dummy? node) 0 (or (:w node) NODE-WIDTH)))
+                      :h (double (if (:dummy? node) 0 (or (:h node) NODE-HEIGHT)))))))
          nodes)))
 
 (defn calculate-strip-geometries [lanes total-width total-height mode]
@@ -201,8 +217,16 @@
         placed-nodes (assign-initial-coordinates ordered-nodes lanes-with-dims {:swimlane-mode "vertical"})
 
         ;; 7. Total Height
+        ;; Use calculate-rank-offsets to get total height accurately
+        rank-offsets (calculate-rank-offsets ordered-nodes false) ;; false = vertical logic here
         max-rank (if (seq placed-nodes) (apply max (map :rank placed-nodes)) 0)
-        total-height (* (inc max-rank) (+ NODE-HEIGHT LAYER-SEP))
+        last-rank-pos (get rank-offsets max-rank 0)
+        ;; Need to add the size of the last rank
+        last-rank-nodes (filter #(= (:rank %) max-rank) ordered-nodes)
+        last-rank-height (if (seq last-rank-nodes)
+                           (apply max (map #(or (:h %) NODE-HEIGHT) last-rank-nodes))
+                           NODE-HEIGHT)
+        total-height (+ last-rank-pos last-rank-height HEADER-SPACE)
 
         ;; 8. Strips
         strips (calculate-strip-geometries lanes-with-dims total-width total-height "vertical")

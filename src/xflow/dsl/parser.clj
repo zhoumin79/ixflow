@@ -104,18 +104,21 @@
     (reduce (fn [ctx line] (parse-line line ctx)) initial-ctx lines)))
 
 (defn flatten-nodes [pools top-level-nodes]
-  (let [all-nodes (atom top-level-nodes)]
-    (letfn [(process-pool [pool path]
-              (let [current-path (conj path pool)
-                    nodes (:nodes pool)]
-                ;; Add the pool itself as a node
-                (swap! all-nodes conj (assoc pool :swimlane-id (str/join " / " (map :name current-path)) :swimlane-path (mapv :name current-path)))
-                (doseq [item nodes]
-                  (if (= (:type item) :pool)
-                    (process-pool item current-path)
-                    (swap! all-nodes conj (assoc item
-                                                 :swimlane-id (str/join " / " (map :name current-path))
-                                                 :swimlane-path (mapv :name current-path)))))))]
-      (doseq [pool pools]
-        (process-pool pool [])))
-    @all-nodes))
+  (letfn [(process-pool [pool path]
+            (let [current-path (conj path pool)
+                  nodes (:nodes pool)
+                  ;; Pool node itself
+                  pool-node (assoc pool
+                                   :swimlane-id (str/join " / " (map :name current-path))
+                                   :swimlane-path (mapv :name current-path))
+                  ;; Process children
+                  children (mapcat (fn [item]
+                                     (if (= (:type item) :pool)
+                                       (process-pool item current-path)
+                                       [(assoc item
+                                               :swimlane-id (str/join " / " (map :name current-path))
+                                               :swimlane-path (mapv :name current-path))]))
+                                   nodes)]
+              (cons pool-node children)))]
+    (concat top-level-nodes
+            (mapcat #(process-pool % []) pools))))

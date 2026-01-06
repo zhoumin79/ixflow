@@ -26,26 +26,50 @@
       false)))
 
 (defn- find-safe-mid [p1 p2 nodes mode]
-  (let [lr? (= mode "horizontal")
-        start-mid (if lr? (/ (+ (:x p1) (:x p2)) 2) (/ (+ (:y p1) (:y p2)) 2))
-        seg-min (if lr? (min (:y p1) (:y p2)) (min (:x p1) (:x p2)))
-        seg-max (if lr? (max (:y p1) (:y p2)) (max (:x p1) (:x p2)))
+  (let [vertical? (not= mode "horizontal")
+        seg-min (if vertical? (min (:x p1) (:x p2)) (min (:y p1) (:y p2)))
+        seg-max (if vertical? (max (:x p1) (:x p2)) (max (:y p1) (:y p2)))
+
+        start-mid (if vertical?
+                    (/ (+ (:y p1) (:y p2)) 2)
+                    (/ (+ (:x p1) (:x p2)) 2))
+
         check (fn [mid]
-                (let [segment (if lr?
-                                {:x1 mid :x2 mid :y1 seg-min :y2 seg-max}
-                                {:x1 seg-min :x2 seg-max :y1 mid :y2 mid})]
-                  (some #(intersects-node? segment %) nodes)))]
-    (if (not (check start-mid))
-      start-mid
-      (loop [offset 20]
-        (if (> offset 200)
-          start-mid
-          (let [try-pos (+ start-mid offset)
-                try-neg (- start-mid offset)]
-            (cond
-              (not (check try-pos)) try-pos
-              (not (check try-neg)) try-neg
-              :else (recur (+ offset 20)))))))))
+                (let [segment (if vertical?
+                                {:x1 seg-min :x2 seg-max :y1 mid :y2 mid}
+                                {:x1 mid :x2 mid :y1 seg-min :y2 seg-max})]
+                  (some #(intersects-node? segment %) nodes)))
+
+        relevant-nodes (filter (fn [n]
+                                 (let [n-min (if vertical? (:x n) (:y n))
+                                       n-max (if vertical? (+ (:x n) (:w n)) (+ (:y n) (:h n)))]
+                                   (and (< n-min seg-max) (> n-max seg-min))))
+                               nodes)
+
+        ;; Get sorted boundaries of obstacles
+        boundaries (sort (distinct (mapcat (fn [n]
+                                             (if vertical?
+                                               [(:y n) (+ (:y n) (:h n))]
+                                               [(:x n) (+ (:x n) (:w n))]))
+                                           relevant-nodes)))
+
+        ;; Calculate centers of gaps between boundaries
+        gap-centers (map (fn [[a b]] (/ (+ a b) 2.0))
+                         (partition 2 1 boundaries))
+
+        candidates (distinct
+                    (concat [start-mid]
+                            gap-centers
+                            (mapcat (fn [n]
+                                      (if vertical?
+                                        [(- (:y n) 20) (+ (:y n) (:h n) 20)]
+                                        [(- (:x n) 20) (+ (:x n) (:w n) 20)]))
+                                    relevant-nodes)))
+
+        sorted-candidates (sort-by #(Math/abs (- % start-mid)) candidates)]
+
+    (or (first (filter #(not (check %)) sorted-candidates))
+        start-mid)))
 
 (defn- find-safe-channel [p1 p2 nodes mode side]
   (let [vertical? (not= mode "horizontal")
