@@ -162,12 +162,34 @@
           [p1 [x1 y2] p2]
           [p1 [x2 y1] p2])))))
 
+(defn- get-safe-point
+  "Get a point outside the node obstacle buffer to start/end routing safely."
+  [point type direction margin]
+  (let [[x y] point]
+    (case direction
+      "lr" (if (= type :source)
+             [(+ x margin) y] ;; Source (Right) -> Move Right
+             [(- x margin) y]) ;; Target (Left) -> Move Left
+      "rl" (if (= type :source)
+             [(- x margin) y] ;; Source (Left) -> Move Left
+             [(+ x margin) y]) ;; Target (Right) -> Move Right
+      "bt" (if (= type :source)
+             [x (- y margin)] ;; Source (Top) -> Move Up
+             [x (+ y margin)]) ;; Target (Bottom) -> Move Down
+      ;; Default "tb"
+      (if (= type :source)
+        [x (+ y margin)] ;; Source (Bottom) -> Move Down
+        [x (- y margin)])))) ;; Target (Top) -> Move Up
+
 (defn route-edges
   "使用 Grid A* 算法路由所有边"
   [{:keys [nodes edges] :as layout} options]
   (let [padding (or (:padding options) 50)
         obs-padding 20
         direction (:direction options "tb")
+
+        ;; Safe margin to escape obstacle buffer (must be > obs-padding)
+        safe-margin (+ obs-padding 10)
 
         ;; 计算全图边界
         min-x (apply min (map :x nodes))
@@ -196,11 +218,16 @@
                              start-pt (get-port-point src :source direction)
                              end-pt (get-port-point tgt :target direction)
 
+                             ;; Calculate safe points outside obstacles
+                             safe-start (get-safe-point start-pt :source direction safe-margin)
+                             safe-end (get-safe-point end-pt :target direction safe-margin)
+
                              src-grids (get node-grids (:id src))
                              tgt-grids (get node-grids (:id tgt))
                              edge-obstacles (clojure.set/difference all-obstacles src-grids tgt-grids)
 
-                             raw-path (find-path start-pt end-pt edge-obstacles bounds)
+                             ;; Route from safe start to safe end
+                             raw-path (find-path safe-start safe-end edge-obstacles bounds)
 
                              ;; Handle orthogonal connection to real ports
                              path-start-grid (first raw-path)
